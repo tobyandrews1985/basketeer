@@ -10,7 +10,7 @@
  */
 
 import { fileURLToPath } from "node:url";
-import { Command } from "commander";
+import { Command, InvalidArgumentError } from "commander";
 import { Basketeer, FileTokenStore, BasketeerError } from "./index.js";
 import type { NutritionFilter } from "./index.js";
 import { BrowserAuthBackend } from "./auth/browser/playwright.js";
@@ -18,6 +18,20 @@ import { BrowserAuthBackend } from "./auth/browser/playwright.js";
 /** Pretty-print any JSON-serialisable value to stdout. */
 function emit(value: unknown): void {
   process.stdout.write(JSON.stringify(value, null, 2) + "\n");
+}
+
+/** commander parser: a non-negative integer, else a usage error. */
+export function nonNegativeInt(value: string): number {
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 0) throw new InvalidArgumentError("must be a non-negative integer");
+  return n;
+}
+
+/** commander parser: a non-negative number (decimals allowed), else a usage error. */
+export function nonNegativeNumber(value: string): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) throw new InvalidArgumentError("must be a non-negative number");
+  return n;
 }
 
 const store = new FileTokenStore();
@@ -55,12 +69,12 @@ program
   .command("search")
   .description("Search the catalogue.")
   .argument("<query>", "search terms")
-  .option("--limit <n>", "max results", "10")
-  .option("--min-protein <g>", "only products with at least this protein per 100g/ml", parseFloat)
-  .option("--max-sugar <g>", "only products with at most this sugar per 100g/ml", parseFloat)
+  .option("--limit <n>", "max results", nonNegativeInt, 10)
+  .option("--min-protein <g>", "only products with at least this protein per 100g/ml", nonNegativeNumber)
+  .option("--max-sugar <g>", "only products with at most this sugar per 100g/ml", nonNegativeNumber)
   .option("--sort <field>", "sort hydrated results by a macro (e.g. protein)")
-  .option("--hydrate <n>", "max results to fetch nutrition for (default 20)", (v) => parseInt(v, 10))
-  .action(async (query: string, opts: { limit: string; minProtein?: number; maxSugar?: number; sort?: string; hydrate?: number }) => {
+  .option("--hydrate <n>", "max results to fetch nutrition for (default 20)", nonNegativeInt)
+  .action(async (query: string, opts: { limit: number; minProtein?: number; maxSugar?: number; sort?: string; hydrate?: number }) => {
     const usesNutrition =
       opts.minProtein != null || opts.maxSugar != null || opts.sort != null;
     if (usesNutrition) {
@@ -68,10 +82,10 @@ program
       if (opts.minProtein != null) where.protein = { min: opts.minProtein };
       if (opts.maxSugar != null) where.sugars = { max: opts.maxSugar };
       const sort = opts.sort ? { by: opts.sort, dir: "desc" as const } : undefined;
-      emit(await readClient().searchByNutrition(query, { where, sort, hydrate: opts.hydrate, limit: Number(opts.limit) }));
+      emit(await readClient().searchByNutrition(query, { where, sort, hydrate: opts.hydrate, limit: opts.limit }));
       return;
     }
-    emit(await readClient().search(query, { limit: Number(opts.limit) }));
+    emit(await readClient().search(query, { limit: opts.limit }));
   });
 
 program
@@ -93,10 +107,10 @@ program
 program
   .command("favourites")
   .description("List the customer's favourites (requires a session).")
-  .option("--limit <n>", "max results", "50")
-  .action(async (opts: { limit: string }) => {
+  .option("--limit <n>", "max results", nonNegativeInt, 50)
+  .action(async (opts: { limit: number }) => {
     const client = await authedClient();
-    emit(await client.favourites({ limit: Number(opts.limit) }));
+    emit(await client.favourites({ limit: opts.limit }));
   });
 
 // --- basket -----------------------------------------------------------------
@@ -115,20 +129,20 @@ basket
   .command("add")
   .description("Add <qty> (default 1) of a product to the basket (increments the line).")
   .argument("<sku>", "product SKU / tpnc")
-  .argument("[qty]", "quantity to add", "1")
-  .action(async (sku: string, qty: string) => {
+  .argument("[qty]", "quantity to add", nonNegativeInt, 1)
+  .action(async (sku: string, qty: number) => {
     const client = await authedClient();
-    emit(await client.basket.add(sku, Number(qty)));
+    emit(await client.basket.add(sku, qty));
   });
 
 basket
   .command("set")
   .description("Set a basket line to an exact quantity (0 removes it).")
   .argument("<sku>", "product SKU / tpnc")
-  .argument("<qty>", "exact quantity")
-  .action(async (sku: string, qty: string) => {
+  .argument("<qty>", "exact quantity", nonNegativeInt)
+  .action(async (sku: string, qty: number) => {
     const client = await authedClient();
-    emit(await client.basket.set(sku, Number(qty)));
+    emit(await client.basket.set(sku, qty));
   });
 
 basket
