@@ -47,10 +47,11 @@ async function main() {
   }
 
   // --- Mutations (NOT executed here) ----------------------------------------
-  // Open an order for amendment (basket ops then modify THIS order until you
-  // check out again or discard). Only before amendExpiry:
-  //   await t.orders.amend(orderNo);
-  //   await t.orders.discardAmendment(orderNo); // leave it unchanged
+  // Open an order for amendment: returns a handle whose basket ops modify THIS
+  // order until you check out again or discard it. Only before amendExpiry:
+  //   const amendment = await t.orders.amend(orderNo);
+  //   await amendment.set(sku, 2);   // edits apply to the amended order
+  //   await amendment.discard();     // ...or leave the order unchanged
   // Cancel outright (before its cutoff):
   //   await t.orders.cancel(orderNo);
 
