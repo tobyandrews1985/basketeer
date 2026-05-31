@@ -10,13 +10,13 @@ Run your weekly shop from code, the terminal, or an AI agent. Everything but sig
 
 <br>
 
-<img src="docs/media/nutrition.gif" alt="basketeer filtering and ranking a live Tesco search by nutrition, then reading a product's micronutrients" width="760">
+<img src="https://raw.githubusercontent.com/tobyandrews1985/basketeer/main/docs/media/nutrition.gif" alt="basketeer filtering and ranking a live Tesco search by nutrition, then reading a product's micronutrients" width="760">
 
 <sub>Filter and rank a live search by on-pack nutrition (protein ≥ 10g, sugar ≤ 7g), then read any product's full macros and micronutrients. Real data, no login.</sub>
 
 <br><br>
 
-<img src="docs/media/demo.gif" alt="basketeer searching Tesco from the CLI, live results, no browser" width="760">
+<img src="https://raw.githubusercontent.com/tobyandrews1985/basketeer/main/docs/media/demo.gif" alt="basketeer searching Tesco from the CLI, live results, no browser" width="760">
 
 <sub>Plain catalogue search is a one-liner: <code>basketeer search "oat milk"</code> piped to <code>jq</code>. Real, live, no login.</sub>
 
@@ -146,7 +146,7 @@ The full grocery lifecycle, typed end to end:
 - **Orders** — `list`, `amend`, `cancel`, `lastFulfilled` (reorder)
 - **Checkout** — `checkout()` returns the payment URL; it never pays
 
-→ Full reference (signatures, return types, the error catalogue, and where the browser runs): **[docs/api.md](docs/api.md)**
+→ Full reference (signatures, return types, the error catalogue, and where the browser runs): **[docs/api.md](https://github.com/tobyandrews1985/basketeer/blob/main/docs/api.md)**
 
 ## How it works
 
@@ -168,7 +168,7 @@ const session = sessionFromCookies(myCookieList); // {name,value}[] => Session
 const client = new Basketeer({ session });        // reads + writes, pure HTTP
 ```
 
-Implement your own backend with the two-method `AuthBackend` (`login`, `refresh`) and three-method `TokenStore` (`load`, `save`, `clear`). `FileTokenStore` and `MemoryTokenStore` ship in the box. The full host matrix is in [docs/api.md](docs/api.md#auth-where-the-browser-runs).
+Implement your own backend with the two-method `AuthBackend` (`login`, `refresh`) and three-method `TokenStore` (`load`, `save`, `clear`). `FileTokenStore` and `MemoryTokenStore` ship in the box. The full host matrix is in [docs/api.md](https://github.com/tobyandrews1985/basketeer/blob/main/docs/api.md#auth-where-the-browser-runs).
 
 > **Serverless note.** A serverless function can't hold a browser, and Tesco's Akamai blocks sign-in from **datacenter** IPs, so a hosted browser needs a **residential** egress. Off-the-shelf managed-browser proxies (Browserbase and similar) are also commonly blocked for supermarket domains. The dependable pattern is a browser on a residential connection you control (a home server, a Pi, the user's device), with the pure-HTTP data plane running anywhere.
 
@@ -208,7 +208,7 @@ A stdio MCP server ships as the `basketeer-mcp` bin, exposing tools (`basketeer_
 
 ## CLI
 
-![The basketeer CLI command palette](docs/media/cli.png)
+![The basketeer CLI command palette](https://raw.githubusercontent.com/tobyandrews1985/basketeer/main/docs/media/cli.png)
 
 The `basketeer` bin prints JSON to stdout, coded errors to stderr. Install globally for the bare command, or prefix with `npx -p basketeer`:
 
