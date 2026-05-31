@@ -12,6 +12,7 @@
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import { Basketeer, FileTokenStore, BasketeerError } from "./index.js";
+import type { NutritionFilter } from "./index.js";
 import { BrowserAuthBackend } from "./auth/browser/playwright.js";
 
 /** Pretty-print any JSON-serialisable value to stdout. */
@@ -55,7 +56,21 @@ program
   .description("Search the catalogue.")
   .argument("<query>", "search terms")
   .option("--limit <n>", "max results", "10")
-  .action(async (query: string, opts: { limit: string }) => {
+  .option("--min-protein <g>", "only products with at least this protein per 100g/ml", parseFloat)
+  .option("--max-sugar <g>", "only products with at most this sugar per 100g/ml", parseFloat)
+  .option("--sort <field>", "sort hydrated results by a macro (e.g. protein)")
+  .option("--hydrate <n>", "max results to fetch nutrition for (default 20)", (v) => parseInt(v, 10))
+  .action(async (query: string, opts: { limit: string; minProtein?: number; maxSugar?: number; sort?: string; hydrate?: number }) => {
+    const usesNutrition =
+      opts.minProtein != null || opts.maxSugar != null || opts.sort != null;
+    if (usesNutrition) {
+      const where: NutritionFilter = {};
+      if (opts.minProtein != null) where.protein = { min: opts.minProtein };
+      if (opts.maxSugar != null) where.sugars = { max: opts.maxSugar };
+      const sort = opts.sort ? { by: opts.sort, dir: "desc" as const } : undefined;
+      emit(await readClient().searchByNutrition(query, { where, sort, hydrate: opts.hydrate, limit: Number(opts.limit) }));
+      return;
+    }
     emit(await readClient().search(query, { limit: Number(opts.limit) }));
   });
 
@@ -65,6 +80,14 @@ program
   .argument("<sku>", "product SKU / tpnc")
   .action(async (sku: string) => {
     emit(await readClient().getProduct(sku));
+  });
+
+program
+  .command("nutrition")
+  .argument("<sku>", "product SKU (tpnc)")
+  .description("Print normalized nutrition (macros + micros) for a product.")
+  .action(async (sku: string) => {
+    emit((await readClient().getProduct(sku)).nutrition);
   });
 
 program
