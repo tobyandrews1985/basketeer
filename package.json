@@ -37,6 +37,7 @@
     "mcp": "tsx src/mcp-server.ts",
     "example:lookup": "tsx examples/lookup.ts",
     "auth:login": "tsx examples/login.ts",
+    "prepare": "npm run build",
     "prepublishOnly": "npm run build && npm test"
   },
   "keywords": ["tesco", "groceries", "automation", "graphql", "client", "mcp", "cli", "ai-agent"],
