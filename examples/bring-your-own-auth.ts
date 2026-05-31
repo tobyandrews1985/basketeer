@@ -35,7 +35,7 @@ class MySecretStoreAuthBackend implements AuthBackend {
     return sessionFromCookies(cookies);
   }
   async refresh(_session: Session): Promise<Session> {
-    // however you renew — re-read a freshly-rotated jar, call Browserbase, etc.
+    // however you renew — re-read a freshly-rotated jar, drive a hosted browser, etc.
     const cookies = await loadCookiesFromMySecretStore();
     return sessionFromCookies(cookies);
   }

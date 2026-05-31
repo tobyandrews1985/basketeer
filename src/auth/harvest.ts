@@ -15,7 +15,7 @@ export function keepCookie(name: string): boolean {
  * `context.cookies()`, Puppeteer's `page.cookies()`, or any `{name, value}[]`
  * you harvested yourself. Keeps only the Tesco auth + Akamai cookies needed to
  * replay authenticated calls. Use this when writing your own `AuthBackend`
- * (local Chrome, Browserbase, your own browser farm, …) — the rest of the
+ * (local Chrome, a hosted browser, your own browser farm, …) — the rest of the
  * library doesn't care how the session was minted.
  *
  * @throws {AuthExpiredError} if the OAuth.AccessToken / UUID cookies are absent
