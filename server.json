@@ -1,0 +1,22 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+  "name": "io.github.tobyandrews1985/basketeer",
+  "description": "Personal UK Tesco grocery account over MCP: search, basket, slots, orders, and on-pack nutrition.",
+  "repository": {
+    "url": "https://github.com/tobyandrews1985/basketeer",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "basketeer",
+      "version": "0.1.0",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

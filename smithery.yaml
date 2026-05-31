@@ -1,0 +1,13 @@
+# Smithery config — lists the npm-published stdio MCP server.
+# https://smithery.ai  ·  the bin is `basketeer-mcp` under the `basketeer` package.
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties: {}
+    additionalProperties: false
+  commandFunction: |-
+    (config) => ({
+      command: "npx",
+      args: ["-y", "-p", "basketeer", "basketeer-mcp"]
+    })
