@@ -26,8 +26,8 @@
     }
   },
   "bin": {
-    "basketeer": "./dist/cli.js",
-    "basketeer-mcp": "./dist/mcp-server.js"
+    "basketeer": "dist/cli.js",
+    "basketeer-mcp": "dist/mcp-server.js"
   },
   "files": [
     "dist",
