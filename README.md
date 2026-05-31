@@ -12,6 +12,7 @@ One typed core, with a CLI and an MCP server on top, so your code, your terminal
 
 [![npm](https://img.shields.io/npm/v/basketeer.svg)](https://www.npmjs.com/package/basketeer)
 [![tests](https://img.shields.io/badge/tests-43%20passing-brightgreen.svg)](tests/)
+[![CI](https://github.com/tobyandrews1985/basketeer/actions/workflows/ci.yml/badge.svg)](https://github.com/tobyandrews1985/basketeer/actions/workflows/ci.yml)
 [![runtime deps](https://img.shields.io/badge/runtime%20deps-3-blue.svg)](package.json)
 [![license: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 [![node >=18](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org)
