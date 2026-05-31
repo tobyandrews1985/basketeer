@@ -18,13 +18,13 @@ function num(s: string | null): number | null {
 /** Unit right after the number: "1.1 µg (22%)" -> "µg", "3.0 g" -> "g". */
 function unitOf(s: string): string | null {
   const m = s.match(/-?\d+(?:\.\d+)?\s*([A-Za-zµμ]+)/);
-  return m ? m[1] : null;
+  return m ? (m[1] ?? null) : null;
 }
 
 /** NRV percent in parens: "(22%**)" -> 22. */
 function nrvOf(s: string): number | null {
   const m = s.match(/\((\d+(?:\.\d+)?)\s*%/);
-  return m ? parseFloat(m[1]) : null;
+  return m ? parseFloat(m[1] ?? "0") : null;
 }
 
 function basisFromHeader(v: string): NutritionBasis {
@@ -94,8 +94,8 @@ export function parseNutrition(rows: unknown[]): Nutrition | null {
       if (value1) {
         const kj = value1.match(/(\d+(?:\.\d+)?)\s*kj/i);
         const kcal = value1.match(/(\d+(?:\.\d+)?)\s*kcal/i);
-        if (kj) macros.energyKj = parseFloat(kj[1]);
-        if (kcal) macros.energyKcal = parseFloat(kcal[1]);
+        if (kj) macros.energyKj = parseFloat(kj[1] ?? "0");
+        if (kcal) macros.energyKcal = parseFloat(kcal[1] ?? "0");
         if (kj && !kcal) expectKcalNext = true;
       }
       continue;
@@ -123,6 +123,11 @@ import type { Product, NutritionFilter, NutritionSort, MacroFilterKey, Range } f
 const MACRO_FILTER_KEYS: MacroFilterKey[] =
   ["energyKcal", "protein", "fat", "saturates", "carbs", "sugars", "fibre", "salt"];
 
+/** Access a product's nutrition safely regardless of the current Product.nutrition type. */
+function pn(p: Product): Nutrition | null {
+  return (p as unknown as { nutrition: Nutrition | null }).nutrition ?? null;
+}
+
 function inRange(v: number | null, r: Range | undefined): boolean {
   if (!r) return true;
   if (v == null) return false;
@@ -132,9 +137,10 @@ function inRange(v: number | null, r: Range | undefined): boolean {
 }
 
 function sortValue(p: Product, by: string): number | null {
-  const m = p.nutrition?.macros;
+  const n = pn(p);
+  const m = n?.macros;
   if (m && by in m) return m[by as keyof typeof m];
-  const micro = p.nutrition?.micros.find((x) => x.name.toLowerCase() === by.toLowerCase());
+  const micro = n?.micros.find((x: Micronutrient) => x.name.toLowerCase() === by.toLowerCase());
   return micro?.amount ?? null;
 }
 
@@ -145,21 +151,22 @@ export function filterByNutrition(
   const { where, sort, basis } = opts;
   const usesNutrition = !!where || !!sort;
 
-  let out = usesNutrition ? products.filter((p) => p.nutrition) : [...products];
+  let out = usesNutrition ? products.filter((p) => pn(p)) : [...products];
 
   if (usesNutrition) {
-    const target = basis ?? out.find((p) => p.nutrition)?.nutrition?.basis;
-    if (target) out = out.filter((p) => p.nutrition!.basis === target);
+    const target = basis ?? pn(out.find((p) => pn(p))!)?.basis;
+    if (target) out = out.filter((p) => pn(p)?.basis === target);
   }
 
   if (where) {
     out = out.filter((p) => {
-      const m = p.nutrition!.macros;
+      const n = pn(p)!;
+      const m = n.macros;
       for (const k of MACRO_FILTER_KEYS) {
         if (where[k] && !inRange(m[k], where[k])) return false;
       }
       for (const mc of where.micro ?? []) {
-        const found = p.nutrition!.micros.find((x) => x.name.toLowerCase() === mc.name.toLowerCase());
+        const found = n.micros.find((x: Micronutrient) => x.name.toLowerCase() === mc.name.toLowerCase());
         if (!inRange(found?.amount ?? null, { min: mc.min, max: mc.max })) return false;
       }
       return true;
