@@ -9,10 +9,13 @@ const emptyMacros = (): Macros => ({
   saturates: null, carbs: null, sugars: null, fibre: null, salt: null,
 });
 
-/** First number in a string: "3.0 g" -> 3.0, "21.5g" -> 21.5, "3.4 g*" -> 3.4. */
+/** Normalize a decimal comma between digits ("1,5" -> "1.5") so European values parse. */
+const deComma = (s: string) => s.replace(/(\d),(\d)/g, "$1.$2");
+
+/** First number in a string: "3.0 g" -> 3.0, "21.5g" -> 21.5, "3.4 g*" -> 3.4, "1,5 g" -> 1.5. */
 function num(s: string | null): number | null {
   if (!s) return null;
-  const m = s.match(/-?\d+(?:\.\d+)?/);
+  const m = deComma(s).match(/-?\d+(?:\.\d+)?/);
   return m ? parseFloat(m[0]) : null;
 }
 
@@ -24,7 +27,7 @@ function unitOf(s: string): string | null {
 
 /** NRV percent in parens: "(22%**)" -> 22. */
 function nrvOf(s: string): number | null {
-  const m = s.match(/\((\d+(?:\.\d+)?)\s*%/);
+  const m = deComma(s).match(/\((\d+(?:\.\d+)?)\s*%/);
   return m ? parseFloat(m[1] ?? "0") : null;
 }
 
@@ -42,11 +45,13 @@ const MACRO_LABELS: Record<string, keyof Macros> = {
   "of which saturates": "saturates",
   "carbohydrate": "carbs",
   "available carbohydrate": "carbs",
+  "total carbohydrate": "carbs",
   "sugars": "sugars",
   "of which sugars": "sugars",
   "fibre": "fibre",
   "protein": "protein",
   "salt": "salt",
+  "salt equivalent": "salt",
 };
 
 function isFootnote(name: string, value: string | null): boolean {
@@ -71,7 +76,8 @@ export function parseNutrition(rows: unknown[]): Nutrition | null {
   for (const r of rows) {
     const row = (r ?? {}) as { name?: unknown; value1?: unknown };
     const name = typeof row.name === "string" ? row.name.trim() : "";
-    const value1 = typeof row.value1 === "string" ? row.value1.trim() : null;
+    // Normalize a decimal comma so the energy kJ/kcal regexes (and num/nrvOf) see "1.5", not "1".
+    const value1 = typeof row.value1 === "string" ? deComma(row.value1.trim()) : null;
     if (!name) continue;
 
     // Energy split across two rows: "257 kJ/" then a row whose value holds the kcal.
@@ -116,7 +122,7 @@ export function parseNutrition(rows: unknown[]): Nutrition | null {
     }
   }
 
-  return { basis, servingSize: null, macros, micros, perServing: null, raw: rows };
+  return { basis, macros, micros, raw: rows };
 }
 
 const MACRO_FILTER_KEYS: MacroFilterKey[] =
@@ -131,9 +137,9 @@ function inRange(v: number | null, r: Range | undefined): boolean {
 }
 
 function sortValue(p: Product, by: string): number | null {
-  const m = p.nutrition?.macros;
-  if (m && by in m) return m[by as keyof typeof m];
-  const micro = p.nutrition?.micros.find((x) => x.name.toLowerCase() === by.toLowerCase());
+  const n = p.nutrition;
+  if (MACRO_FILTER_KEYS.includes(by as MacroFilterKey)) return n?.macros?.[by as MacroFilterKey] ?? null;
+  const micro = n?.micros.find((x) => x.name.toLowerCase() === by.toLowerCase());
   return micro?.amount ?? null;
 }
 

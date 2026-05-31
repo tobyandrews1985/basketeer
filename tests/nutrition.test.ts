@@ -41,11 +41,24 @@ describe("parseNutrition", () => {
     const rows = fixture("oatly-barista.json");
     expect(parseNutrition(rows)!.raw).toEqual(rows);
   });
+
+  it("buckets edge macro labels and parses comma decimals (edge-labels fixture)", () => {
+    const n = parseNutrition(fixture("edge-labels.json"))!;
+    expect(n.macros.salt).toBe(0.5);
+    expect(n.macros.carbs).toBe(12.5);
+    expect(n.macros.protein).toBe(1.5);
+    // those labels must not leak into micros
+    const microNames = n.micros.map((m) => m.name);
+    expect(microNames).not.toContain("Salt equivalent");
+    expect(microNames).not.toContain("Total Carbohydrate");
+  });
 });
 
-function product(sku: string, basis: "per_100g" | null, macros: Partial<Record<string, number>>): Product {
+type Basis = "per_100g" | "per_100ml";
+
+function product(sku: string, basis: Basis | null, macros: Partial<Record<string, number>>): Product {
   const nutrition = basis === null ? null : {
-    basis, servingSize: null, perServing: null, micros: [], raw: [],
+    basis, micros: [], raw: [],
     macros: {
       energyKcal: null, energyKj: null, protein: null, fat: null, saturates: null,
       carbs: null, sugars: null, fibre: null, salt: null, ...macros,
@@ -82,5 +95,15 @@ describe("filterByNutrition", () => {
     const noNut = [product("x", null, {})];
     expect(() => filterByNutrition(noNut, { where: { protein: { min: 0 } } })).not.toThrow();
     expect(filterByNutrition(noNut, { where: { protein: { min: 0 } } })).toEqual([]);
+  });
+
+  it("drops basis-mismatched products, keeping the first/majority basis", () => {
+    const mixed = [
+      product("g1", "per_100g", { protein: 25 }),
+      product("g2", "per_100g", { protein: 30 }),
+      product("ml1", "per_100ml", { protein: 28 }), // mismatched basis — must be dropped
+    ];
+    const out = filterByNutrition(mixed, { where: { protein: { min: 0 } } });
+    expect(out.map((p) => p.sku).sort()).toEqual(["g1", "g2"]);
   });
 });
