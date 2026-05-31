@@ -195,8 +195,9 @@ export class Basketeer {
     for (const r of head) {
       try {
         hydrated.push(await this.getProduct(r.sku)); // serial — relies on the 1 req/s transport throttle
-      } catch {
-        failed++; // discontinued/regional SKUs 404 on detail; skip, don't reject the whole call
+      } catch (err) {
+        if (err instanceof NotFoundError) { failed++; continue; } // discontinued/regional SKU 404s — soft-skip
+        throw err; // rate-limit, bad key, auth, transport, schema — these are real; don't hide them
       }
     }
 

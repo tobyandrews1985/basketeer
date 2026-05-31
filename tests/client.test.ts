@@ -5,6 +5,7 @@ import {
   ApiKeyError,
   AuthExpiredError,
   LineRejectedError,
+  NotFoundError,
   RateLimitedError,
 } from "../src/errors.js";
 import { makeNutritionClient, makeNutritionClientWith, SESSION, stubFetch } from "./helpers.js";
@@ -260,5 +261,25 @@ describe("searchByNutrition", () => {
     expect(out.hydrated).toBe(3);
     expect(out.hasMore).toBe(true);
     expect(out.failed).toBe(0);
+  });
+
+  it("soft-skips NotFoundError (discontinued SKU) without rejecting", async () => {
+    // b's detail 404s → NotFoundError; a and c hydrate fine.
+    const client = makeNutritionClientWith(["a", "b", "c"], { a: 25, b: "404", c: 30 });
+
+    const out = await client.searchByNutrition("protein", { hydrate: 3 });
+
+    expect(out.failed).toBeGreaterThanOrEqual(1);
+    expect(out.hydrated).toBe(2);
+    expect(out.results.map((p) => p.sku).sort()).toEqual(["a", "c"]);
+  });
+
+  it("propagates RateLimitedError instead of swallowing it", async () => {
+    // a hydrates fine; b triggers a 429 → must reject the whole call.
+    const client = makeNutritionClientWith(["a", "b", "c"], { a: 25, b: "429", c: 30 });
+
+    await expect(client.searchByNutrition("protein", { hydrate: 3 })).rejects.toBeInstanceOf(
+      RateLimitedError,
+    );
   });
 });

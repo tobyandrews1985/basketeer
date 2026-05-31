@@ -73,6 +73,11 @@ function notFoundResponse(): StubResponse {
   return { body: [{ data: { product: null } }] };
 }
 
+/** A 429 response — the transport maps this to RateLimitedError. */
+function rateLimitResponse(): StubResponse {
+  return { status: 429, body: "Too Many Requests" };
+}
+
 /** A search node with the given SKU, shaped like the live ProductInterface node. */
 function searchNode(sku: string) {
   return {
@@ -95,17 +100,18 @@ function searchResponseFor(skus: string[]): StubResponse {
 
 /**
  * A Basketeer whose search returns `skus`, then product detail responses are drawn
- * from `details` keyed by SKU (a number → protein per_100g, the string "404" → NotFound).
+ * from `details` keyed by SKU (a number → protein per_100g, "404" → NotFound, "429" → RateLimited).
  * Responses are queued in SKU order, so call `searchByNutrition` with a matching hydrate cap.
  */
 export function makeNutritionClientWith(
   skus: string[],
-  details: Record<string, number | "404">,
+  details: Record<string, number | "404" | "429">,
 ): Basketeer {
   const responses: StubResponse[] = [searchResponseFor(skus)];
   for (const sku of skus) {
     const d = details[sku];
-    responses.push(d === "404" || d === undefined ? notFoundResponse() : productResponse(sku, d));
+    if (d === "429") responses.push(rateLimitResponse());
+    else responses.push(d === "404" || d === undefined ? notFoundResponse() : productResponse(sku, d));
   }
   const { impl } = stubFetch(responses);
   return new Basketeer({ throttleMs: 0, fetchImpl: impl });
