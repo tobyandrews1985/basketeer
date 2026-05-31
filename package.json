@@ -56,12 +56,16 @@
   "keywords": [
     "tesco",
     "groceries",
+    "grocery",
+    "supermarket",
+    "nutrition",
     "automation",
     "graphql",
     "client",
     "mcp",
     "cli",
-    "ai-agent"
+    "ai-agent",
+    "uk"
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
