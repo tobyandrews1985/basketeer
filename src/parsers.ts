@@ -19,6 +19,7 @@ import type {
   SearchResult,
   Slot,
 } from "./models.js";
+import { parseNutrition } from "./nutrition.js";
 
 /** A decoded-JSON object whose fields are still untrusted. */
 export type Raw = Record<string, unknown>;
@@ -61,6 +62,7 @@ function parsePackSize(v: unknown): PackSize | null {
 export function parseProduct(v: unknown): Product {
   const node = obj(v);
   const details = obj(node.details);
+  const nutrition = parseNutrition(arr(details.nutrition));
   return {
     sku: id(node.tpnc) ?? "",
     tpnb: id(node.tpnb),
@@ -69,7 +71,8 @@ export function parseProduct(v: unknown): Product {
     price: parsePrice(node.price),
     packSize: parsePackSize(details.packSize),
     promotions: parsePromotions(node.promotions),
-    nutrition: arr(details.nutrition),
+    nutrition,
+    macros: nutrition?.macros ?? null,
     raw: v,
   };
 }

@@ -1,6 +1,7 @@
 // src/nutrition.ts — pure nutrition normalization + filtering. No I/O.
 import type {
   Macros, Micronutrient, Nutrition, NutritionBasis,
+  Product, NutritionFilter, NutritionSort, MacroFilterKey, Range,
 } from "./models.js";
 
 const emptyMacros = (): Macros => ({
@@ -118,15 +119,8 @@ export function parseNutrition(rows: unknown[]): Nutrition | null {
   return { basis, servingSize: null, macros, micros, perServing: null, raw: rows };
 }
 
-import type { Product, NutritionFilter, NutritionSort, MacroFilterKey, Range } from "./models.js";
-
 const MACRO_FILTER_KEYS: MacroFilterKey[] =
   ["energyKcal", "protein", "fat", "saturates", "carbs", "sugars", "fibre", "salt"];
-
-/** Access a product's nutrition safely regardless of the current Product.nutrition type. */
-function pn(p: Product): Nutrition | null {
-  return (p as unknown as { nutrition: Nutrition | null }).nutrition ?? null;
-}
 
 function inRange(v: number | null, r: Range | undefined): boolean {
   if (!r) return true;
@@ -137,10 +131,9 @@ function inRange(v: number | null, r: Range | undefined): boolean {
 }
 
 function sortValue(p: Product, by: string): number | null {
-  const n = pn(p);
-  const m = n?.macros;
+  const m = p.nutrition?.macros;
   if (m && by in m) return m[by as keyof typeof m];
-  const micro = n?.micros.find((x: Micronutrient) => x.name.toLowerCase() === by.toLowerCase());
+  const micro = p.nutrition?.micros.find((x) => x.name.toLowerCase() === by.toLowerCase());
   return micro?.amount ?? null;
 }
 
@@ -151,22 +144,21 @@ export function filterByNutrition(
   const { where, sort, basis } = opts;
   const usesNutrition = !!where || !!sort;
 
-  let out = usesNutrition ? products.filter((p) => pn(p)) : [...products];
+  let out = usesNutrition ? products.filter((p) => p.nutrition) : [...products];
 
   if (usesNutrition) {
-    const target = basis ?? pn(out.find((p) => pn(p))!)?.basis;
-    if (target) out = out.filter((p) => pn(p)?.basis === target);
+    const target = basis ?? out.find((p) => p.nutrition)?.nutrition?.basis;
+    if (target) out = out.filter((p) => p.nutrition?.basis === target);
   }
 
   if (where) {
     out = out.filter((p) => {
-      const n = pn(p)!;
-      const m = n.macros;
+      const m = p.nutrition!.macros;
       for (const k of MACRO_FILTER_KEYS) {
         if (where[k] && !inRange(m[k], where[k])) return false;
       }
       for (const mc of where.micro ?? []) {
-        const found = n.micros.find((x: Micronutrient) => x.name.toLowerCase() === mc.name.toLowerCase());
+        const found = p.nutrition!.micros.find((x) => x.name.toLowerCase() === mc.name.toLowerCase());
         if (!inRange(found?.amount ?? null, { min: mc.min, max: mc.max })) return false;
       }
       return true;

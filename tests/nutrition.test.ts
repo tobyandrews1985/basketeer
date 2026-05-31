@@ -77,4 +77,10 @@ describe("filterByNutrition", () => {
     const out = filterByNutrition(items, { sort: { by: "protein", dir: "desc" } });
     expect(out.map(p => p.sku)).toEqual(["c", "a", "b"]); // d dropped (sort references nutrition)
   });
+
+  it("returns [] without throwing when no product has nutrition", () => {
+    const noNut = [product("x", null, {})];
+    expect(() => filterByNutrition(noNut, { where: { protein: { min: 0 } } })).not.toThrow();
+    expect(filterByNutrition(noNut, { where: { protein: { min: 0 } } })).toEqual([]);
+  });
 });

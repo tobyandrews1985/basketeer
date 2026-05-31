@@ -29,8 +29,10 @@ export interface Product {
   price: Price;
   packSize: PackSize | null;
   promotions: Promotion[];
-  /** Raw nutrition rows as returned by Tesco (unparsed; shape varies). */
-  nutrition: unknown[];
+  /** Normalized nutrition, or null if Tesco returned none / it was unparseable. */
+  nutrition: Nutrition | null;
+  /** Convenience mirror of `nutrition?.macros`. */
+  macros: Macros | null;
   raw: unknown;
 }
 
