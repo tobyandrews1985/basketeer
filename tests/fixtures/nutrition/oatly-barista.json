@@ -1,0 +1,20 @@
+[
+  { "name": "Typical Values", "value1": "per 100 ml:", "value2": null, "value3": null },
+  { "name": "Energy", "value1": "257 kJ/", "value2": null, "value3": null },
+  { "name": "-", "value1": "61 kcal", "value2": null, "value3": null },
+  { "name": "Fat", "value1": "3.0 g", "value2": null, "value3": null },
+  { "name": "of which saturates", "value1": "0.3 g", "value2": null, "value3": null },
+  { "name": "Carbohydrate", "value1": "7.1 g", "value2": null, "value3": null },
+  { "name": "sugars", "value1": "3.4 g*", "value2": null, "value3": null },
+  { "name": "Fibre", "value1": "0.8 g", "value2": null, "value3": null },
+  { "name": "Protein", "value1": "1.1 g", "value2": null, "value3": null },
+  { "name": "Salt", "value1": "0.10 g", "value2": null, "value3": null },
+  { "name": "Vitamin D", "value1": "1.1 µg (22%**)", "value2": null, "value3": null },
+  { "name": "Riboflavin", "value1": "0.21 mg (15%**)", "value2": null, "value3": null },
+  { "name": "Vitamin B12", "value1": "0.38 µg (15%**)", "value2": null, "value3": null },
+  { "name": "Calcium", "value1": "120 mg (15%**)", "value2": null, "value3": null },
+  { "name": "Iodine", "value1": "22.5 µg (15%**)", "value2": null, "value3": null },
+  { "name": "of which", "value1": "-", "value2": null, "value3": null },
+  { "name": "*Natural sugars from oats", "value1": "-", "value2": null, "value3": null },
+  { "name": "**Of the Nutrient Reference Value (NRVs)", "value1": "-", "value2": null, "value3": null }
+]

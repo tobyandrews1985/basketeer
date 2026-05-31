@@ -1,0 +1,13 @@
+[
+  { "name": "Typical Values", "value1": "Per 100g", "value2": null, "value3": null },
+  { "name": "Energy", "value1": "486kJ / 115kcal", "value2": "null / null", "value3": null },
+  { "name": "Fat", "value1": "3.3g", "value2": "", "value3": null },
+  { "name": "Saturates", "value1": "0.8g", "value2": "", "value3": null },
+  { "name": "Available Carbohydrate", "value1": "0g", "value2": "", "value3": null },
+  { "name": "Sugars", "value1": "0g", "value2": "", "value3": null },
+  { "name": "Fibre", "value1": "0g", "value2": "", "value3": null },
+  { "name": "Protein", "value1": "21.5g", "value2": "", "value3": null },
+  { "name": "Salt", "value1": "0.18g", "value2": "", "value3": null },
+  { "name": "* Reference intake of an average adult (8400 kJ / 2000 kcal)", "value1": "-", "value2": null, "value3": null },
+  { "name": "As sold", "value1": "-", "value2": null, "value3": null }
+]
