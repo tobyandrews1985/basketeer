@@ -155,7 +155,7 @@ Returns the hydrated/skipped counts so the cost is **explicit and reported** —
 ## Data flow
 
 ```
-parseProductNode(raw)  ──►  product.nutrition = parseNutrition(raw.nutrition rows)
+parseProduct(raw)      ──►  product.nutrition = parseNutrition(raw.nutrition rows)
 search(q)              ──►  SearchPage (no nutrition; results are lean)
 searchByNutrition(q)   ──►  search(q) ─► getProduct×N (throttled) ─► filterByNutrition ─► ranked Product[]
 filterByNutrition(ps)  ──►  pure: drop no-nutrition, apply where, sort  (no network)
@@ -179,7 +179,7 @@ filterByNutrition(ps)  ──►  pure: drop no-nutrition, apply where, sort  (n
 | --- | --- |
 | `src/nutrition.ts` | **new** — `parseNutrition`, `filterByNutrition`, label maps, value parsing (pure, no I/O) |
 | `src/models.ts` | add `NutritionBasis`, `Macros`, `Micronutrient`, `Nutrition`, `Range`, `NutritionFilter`, `NutritionSort`; change `Product.nutrition` |
-| `src/parsers.ts` | `parseProductNode` calls `parseNutrition` to populate `product.nutrition`; add `product.macros` getter |
+| `src/parsers.ts` | `parseProduct` calls `parseNutrition` to populate `product.nutrition`; add `product.macros` getter |
 | `src/client.ts` | add `searchByNutrition` |
 | `src/cli.ts` | `nutrition` command + nutrition flags on `search` |
 | `src/mcp-server.ts` | `basketeer_nutrition`, `basketeer_search_by_nutrition` tools |
