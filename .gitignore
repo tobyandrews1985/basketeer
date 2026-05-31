@@ -11,6 +11,7 @@ node_modules/
 
 # local working notes / scratch (agent handoffs, captures) — not for the public repo
 state/
+marketing/
 
 # local secrets & harvested sessions — never commit
 .env
