@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { Basketeer } from "../src/client.js";
 import { ApiKeyError, RateLimitedError, LineRejectedError, AuthExpiredError } from "../src/errors.js";
 import type { AuthBackend } from "../src/auth/types.js";
-import { stubFetch, SESSION, makeNutritionClient } from "./helpers.js";
+import { stubFetch, SESSION, makeNutritionClient, makeNutritionClientWith } from "./helpers.js";
 
 const SEARCH_BODY = [
   {
@@ -210,13 +210,33 @@ describe("searchByNutrition", () => {
 
     expect(out.hydrated).toBe(3);
     expect(out.results.map((p) => p.sku)).toEqual(["c", "a"]); // b filtered out (protein=10), sorted desc
-    expect(out.skipped).toBe(0);
+    expect(out.failed).toBe(0);
+    // a full page (3 returned for a cap of 3) reports hasMore via search's heuristic
+    expect(out.hasMore).toBe(true);
   });
 
-  it("respects the hydrate cap and reports skipped", async () => {
-    const client = makeNutritionClient(); // search returns 3 results
-    const out = await client.searchByNutrition("protein", { hydrate: 2 });
-    expect(out.hydrated).toBe(2);
-    expect(out.skipped).toBe(1);
+  it("skips a failed product fetch instead of rejecting the whole call", async () => {
+    // b's detail 404s; a and c hydrate fine.
+    const client = makeNutritionClientWith(["a", "b", "c"], { a: 25, b: "404", c: 30 });
+
+    const out = await client.searchByNutrition("protein", { hydrate: 3 });
+
+    expect(out.hydrated).toBe(2); // a and c
+    expect(out.failed).toBeGreaterThanOrEqual(1);
+    expect(out.results.map((p) => p.sku).sort()).toEqual(["a", "c"]);
+  });
+
+  it("respects the hydrate cap and reports hasMore", async () => {
+    // 6 search hits, hydrate only 3 → 3 hydrated, catalogue had more.
+    const client = makeNutritionClientWith(
+      ["a", "b", "c", "d", "e", "f"],
+      { a: 25, b: 10, c: 30, d: 5, e: 15, f: 20 },
+    );
+
+    const out = await client.searchByNutrition("protein", { hydrate: 3 });
+
+    expect(out.hydrated).toBe(3);
+    expect(out.hasMore).toBe(true);
+    expect(out.failed).toBe(0);
   });
 });

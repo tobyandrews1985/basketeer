@@ -177,26 +177,32 @@ export class Basketeer {
 
   /**
    * Keyword search, then hydrate the top `hydrate` results' nutrition (each a throttled
-   * product fetch) and filter/rank locally. Returns the products plus how many were
-   * hydrated/skipped — the cost is bounded by `hydrate` (default 20) and reported, not hidden.
+   * product fetch) and filter/rank locally. The cost is bounded by `hydrate` (default 20)
+   * and reported honestly: `hydrated` is how many products were fetched, `failed` how many
+   * detail fetches errored (and were skipped, not fatal), and `hasMore` whether the
+   * catalogue had more keyword matches than were hydrated.
    */
   async searchByNutrition(
     query: string,
     opts: { where?: NutritionFilter; sort?: NutritionSort; hydrate?: number; limit?: number } = {},
-  ): Promise<{ results: Product[]; hydrated: number; skipped: number }> {
+  ): Promise<{ results: Product[]; hydrated: number; failed: number; hasMore: boolean }> {
     const cap = opts.hydrate ?? 20;
-    const page = await this.search(query);
+    const page = await this.search(query, { limit: Math.max(cap, opts.limit ?? 0) });
     const head = page.results.slice(0, cap);
-    const skipped = Math.max(0, page.results.length - head.length);
 
     const hydrated: Product[] = [];
+    let failed = 0;
     for (const r of head) {
-      hydrated.push(await this.getProduct(r.sku)); // serial — relies on the 1 req/s transport throttle
+      try {
+        hydrated.push(await this.getProduct(r.sku)); // serial — relies on the 1 req/s transport throttle
+      } catch {
+        failed++; // discontinued/regional SKUs 404 on detail; skip, don't reject the whole call
+      }
     }
 
     let results = filterByNutrition(hydrated, { where: opts.where, sort: opts.sort });
     if (opts.limit != null) results = results.slice(0, opts.limit);
-    return { results, hydrated: hydrated.length, skipped };
+    return { results, hydrated: hydrated.length, failed, hasMore: page.hasMore };
   }
 
   /**

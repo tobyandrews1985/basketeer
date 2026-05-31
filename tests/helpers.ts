@@ -68,6 +68,40 @@ function productResponse(sku: string, proteinG: number): StubResponse {
   };
 }
 
+/** A product detail response with no `product` — `getProduct` treats this as NotFound. */
+function notFoundResponse(): StubResponse {
+  return { body: [{ data: { product: null } }] };
+}
+
+/** A search node with the given SKU, shaped like the live ProductInterface node. */
+function searchNode(sku: string) {
+  return {
+    node: {
+      __typename: "ProductType", tpnc: sku, tpnb: sku, title: `Product ${sku}`, brandName: "TestBrand",
+      sellers: { results: [{ price: { actual: 1.0, unitPrice: 1.0, unitOfMeasure: "kg" }, promotions: [] }] },
+    },
+  };
+}
+
+function searchResponseFor(skus: string[]): StubResponse {
+  return { body: [{ data: { search: { results: skus.map(searchNode) } } }] };
+}
+
+/**
+ * A Basketeer whose search returns `skus`, then product detail responses are drawn
+ * from `details` keyed by SKU (a number → protein per_100g, the string "404" → NotFound).
+ * Responses are queued in SKU order, so call `searchByNutrition` with a matching hydrate cap.
+ */
+export function makeNutritionClientWith(skus: string[], details: Record<string, number | "404">): Basketeer {
+  const responses: StubResponse[] = [searchResponseFor(skus)];
+  for (const sku of skus) {
+    const d = details[sku];
+    responses.push(d === "404" || d === undefined ? notFoundResponse() : productResponse(sku, d));
+  }
+  const { impl } = stubFetch(responses);
+  return new Basketeer({ throttleMs: 0, fetchImpl: impl });
+}
+
 /**
  * Returns a Basketeer (throttleMs: 0) whose fetchImpl answers:
  * - Search("protein") → 3 results with SKUs a, b, c
