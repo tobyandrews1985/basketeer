@@ -111,7 +111,8 @@ export function makeNutritionClientWith(
   for (const sku of skus) {
     const d = details[sku];
     if (d === "429") responses.push(rateLimitResponse());
-    else responses.push(d === "404" || d === undefined ? notFoundResponse() : productResponse(sku, d));
+    else
+      responses.push(d === "404" || d === undefined ? notFoundResponse() : productResponse(sku, d));
   }
   const { impl } = stubFetch(responses);
   return new Basketeer({ throttleMs: 0, fetchImpl: impl });

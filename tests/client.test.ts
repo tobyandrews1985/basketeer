@@ -5,7 +5,6 @@ import {
   ApiKeyError,
   AuthExpiredError,
   LineRejectedError,
-  NotFoundError,
   RateLimitedError,
 } from "../src/errors.js";
 import { makeNutritionClient, makeNutritionClientWith, SESSION, stubFetch } from "./helpers.js";
@@ -281,5 +280,60 @@ describe("searchByNutrition", () => {
     await expect(client.searchByNutrition("protein", { hydrate: 3 })).rejects.toBeInstanceOf(
       RateLimitedError,
     );
+  });
+});
+
+describe("numeric input validation", () => {
+  it("search rejects with RangeError for negative limit", async () => {
+    const t = new Basketeer({ throttleMs: 0 });
+    await expect(t.search("x", { limit: -1 })).rejects.toThrow(RangeError);
+  });
+
+  it("search rejects with RangeError for zero page", async () => {
+    const t = new Basketeer({ throttleMs: 0 });
+    await expect(t.search("x", { page: 0 })).rejects.toThrow(RangeError);
+  });
+
+  it("search rejects with RangeError for fractional limit", async () => {
+    const t = new Basketeer({ throttleMs: 0 });
+    await expect(t.search("x", { limit: 1.5 })).rejects.toThrow(RangeError);
+  });
+
+  it("searchByNutrition rejects with RangeError for hydrate=0", async () => {
+    const t = new Basketeer({ throttleMs: 0 });
+    await expect(t.searchByNutrition("x", { hydrate: 0 })).rejects.toThrow(RangeError);
+  });
+
+  it("searchByNutrition rejects with RangeError for negative limit", async () => {
+    const t = new Basketeer({ throttleMs: 0 });
+    await expect(t.searchByNutrition("x", { limit: -5 })).rejects.toThrow(RangeError);
+  });
+
+  it("basket.add rejects with RangeError for negative quantity", async () => {
+    const t = new Basketeer({ session: SESSION, throttleMs: 0 });
+    await expect(t.basket.add("sku", -2)).rejects.toThrow(RangeError);
+  });
+
+  it("basket.add rejects with RangeError for zero quantity", async () => {
+    const t = new Basketeer({ session: SESSION, throttleMs: 0 });
+    await expect(t.basket.add("sku", 0)).rejects.toThrow(RangeError);
+  });
+
+  it("basket.set throws RangeError for negative quantity", () => {
+    const t = new Basketeer({ session: SESSION, throttleMs: 0 });
+    expect(() => t.basket.set("sku", -1)).toThrow(RangeError);
+  });
+
+  it("basket.set accepts 0 (removes line) without throwing", async () => {
+    const body = [{ data: { basket: { id: "b1", items: [], updates: { items: [] } } } }];
+    const { impl } = stubFetch([{ body }]);
+    const t = new Basketeer({ session: SESSION, throttleMs: 0, fetchImpl: impl });
+    await expect(t.basket.set("sku", 0)).resolves.toBeDefined();
+  });
+
+  it("search with valid limit resolves without throwing", async () => {
+    const { impl } = stubFetch([{ body: SEARCH_BODY }]);
+    const t = new Basketeer({ throttleMs: 0, fetchImpl: impl });
+    await expect(t.search("milk", { limit: 5 })).resolves.toBeDefined();
   });
 });

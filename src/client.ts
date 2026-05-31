@@ -75,6 +75,12 @@ export interface BasketItemInput {
   substitutionOption?: string;
 }
 
+/** Guard for numeric SDK inputs. Throws `RangeError` for non-integer or out-of-range values. */
+function reqInt(v: number | undefined, name: string, min: number): void {
+  if (v === undefined) return;
+  if (!Number.isInteger(v) || v < min) throw new RangeError(`${name} must be an integer >= ${min}`);
+}
+
 function normaliseItem(item: BasketItemInput): Record<string, unknown> {
   return {
     adjustment: item.adjustment ?? false,
@@ -166,6 +172,8 @@ export class Basketeer {
   }
 
   async search(query: string, opts: { limit?: number; page?: number } = {}): Promise<SearchPage> {
+    reqInt(opts.limit, "limit", 1);
+    reqInt(opts.page, "page", 1);
     const data = await this.transport.execute<{ search?: { results?: Raw[] } }>({
       operationName: "Search",
       query: SEARCH,
@@ -186,6 +194,8 @@ export class Basketeer {
     query: string,
     opts: { where?: NutritionFilter; sort?: NutritionSort; hydrate?: number; limit?: number } = {},
   ): Promise<{ results: Product[]; hydrated: number; failed: number; hasMore: boolean }> {
+    reqInt(opts.hydrate, "hydrate", 1);
+    reqInt(opts.limit, "limit", 1);
     const cap = opts.hydrate ?? 20;
     const page = await this.search(query, { limit: Math.max(cap, opts.limit ?? 0) });
     const head = page.results.slice(0, cap);
@@ -196,7 +206,10 @@ export class Basketeer {
       try {
         hydrated.push(await this.getProduct(r.sku)); // serial — relies on the 1 req/s transport throttle
       } catch (err) {
-        if (err instanceof NotFoundError) { failed++; continue; } // discontinued/regional SKU 404s — soft-skip
+        if (err instanceof NotFoundError) {
+          failed++;
+          continue;
+        } // discontinued/regional SKU 404s — soft-skip
         throw err; // rate-limit, bad key, auth, transport, schema — these are real; don't hide them
       }
     }
@@ -225,6 +238,7 @@ export class Basketeer {
 
   /** The customer's favourites ("my usuals"). */
   async favourites(opts: { limit?: number; page?: number } = {}): Promise<SearchPage> {
+    reqInt(opts.limit, "limit", 1);
     const data = await this.transport.execute<{ favourites?: { products?: Raw[] } }>({
       operationName: "GetFavourites",
       query: GET_FAVOURITES,
@@ -258,12 +272,17 @@ export class Basketeer {
      * concurrent edits — use `set` for exact, idempotent quantities.
      */
     add: async (sku: string, quantity = 1, unit = "pcs"): Promise<Basket> => {
+      if (!Number.isInteger(quantity) || quantity < 1)
+        throw new RangeError("quantity must be an integer >= 1");
       const current = (await this.getBasket()).items.find((i) => i.sku === sku)?.quantity ?? 0;
       return this.updateBasket([{ id: sku, newValue: current + quantity, newUnitChoice: unit }]);
     },
     /** Set the line for `sku` to an exact `quantity` (0 removes it). */
-    set: (sku: string, quantity: number, unit = "pcs"): Promise<Basket> =>
-      this.updateBasket([{ id: sku, newValue: quantity, newUnitChoice: unit }]),
+    set: (sku: string, quantity: number, unit = "pcs"): Promise<Basket> => {
+      if (!Number.isInteger(quantity) || quantity < 0)
+        throw new RangeError("quantity must be an integer >= 0");
+      return this.updateBasket([{ id: sku, newValue: quantity, newUnitChoice: unit }]);
+    },
     /** Remove `sku` from the basket. */
     remove: (sku: string): Promise<Basket> => this.updateBasket([{ id: sku, newValue: 0 }]),
     /** Low-level: send raw basket line inputs (and an optional orderId). */
