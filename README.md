@@ -2,28 +2,27 @@
 
 # basketeer
 
-**A typed, pure-HTTP TypeScript SDK for your own Tesco grocery account, with full nutrition data on every product.**
+**A typed, pure-HTTP TypeScript SDK for your own Tesco grocery account, with on-pack nutrition normalized into typed data.**
 
-Run your weekly shop from code, the terminal, or an AI agent. Everything but sign-in and payment is plain `fetch`, and every product comes back with typed macros *and* micronutrients you can search and rank by.
+Run your weekly shop from code, the terminal, or an AI agent. Everything but sign-in and payment is plain `fetch`, and products come back with their on-pack nutrition normalized into typed macros *and* micronutrients you can search and rank by.
 
 <sub>Unofficial · not affiliated with Tesco · for automating your own account · MIT</sub>
 
 <br>
 
-<img src="docs/media/nutrition.gif" alt="basketeer filtering and ranking a live Tesco search by nutrition, then reading a product's micronutrients" width="760">
+<img src="https://raw.githubusercontent.com/tobyandrews1985/basketeer/main/docs/media/nutrition.gif" alt="basketeer filtering and ranking a live Tesco search by nutrition, then reading a product's micronutrients" width="760">
 
 <sub>Filter and rank a live search by on-pack nutrition (protein ≥ 10g, sugar ≤ 7g), then read any product's full macros and micronutrients. Real data, no login.</sub>
 
 <br><br>
 
-<img src="docs/media/demo.gif" alt="basketeer searching Tesco from the CLI, live results, no browser" width="760">
+<img src="https://raw.githubusercontent.com/tobyandrews1985/basketeer/main/docs/media/demo.gif" alt="basketeer searching Tesco from the CLI, live results, no browser" width="760">
 
 <sub>Plain catalogue search is a one-liner: <code>basketeer search "oat milk"</code> piped to <code>jq</code>. Real, live, no login.</sub>
 
 <br>
 
 [![CI](https://github.com/tobyandrews1985/basketeer/actions/workflows/ci.yml/badge.svg)](https://github.com/tobyandrews1985/basketeer/actions/workflows/ci.yml)
-[![core runtime deps](https://img.shields.io/badge/core%20runtime%20deps-0-blue.svg)](package.json)
 [![tests](https://img.shields.io/badge/tests-71%20passing-brightgreen.svg)](tests/)
 [![license: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 [![node >=18](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org)
@@ -32,19 +31,19 @@ Run your weekly shop from code, the terminal, or an AI agent. Everything but sig
 
 ## Why basketeer
 
-Tesco has no public API. The tools that exist scrape the DOM and shatter on the next site redesign, none of them expose nutrition, and none of them let an AI agent shop for you. basketeer talks to Tesco's GraphQL gateway directly:
+Tesco has no public API, and the usual approach (scraping the DOM) shatters on the next site redesign, stops at titles and prices, and can't be driven by an AI agent. basketeer talks to Tesco's GraphQL gateway directly:
 
-- **Nutritionally aware.** Every product returns typed macros *and* structured micronutrients, free on anonymous reads. Search and *rank* a result by them with `searchByNutrition`. Nothing else talking to Tesco does this.
+- **Nutritionally aware.** Where Tesco lists on-pack nutrition, basketeer normalizes it into typed macros *and* structured micronutrients, free on anonymous reads, and lets you filter and *rank* a search by them (`searchByNutrition`). A first-class API, not a scraped afterthought.
 - **Robust.** Pure-HTTP GraphQL, not DOM scraping. A cosmetic site redesign won't break it.
 - **Complete.** Book, amend, cancel, and reorder a delivered shop. The full order lifecycle, not just "add to basket."
 - **Agent-ready.** A stdio MCP server lets Claude or any MCP client run the shop. Read-only and destructive tools are annotated, and checkout never pays.
-- **Typed and lean.** One fully-typed client you import; the CLI and MCP server are built on it. The importable core has **zero** runtime dependencies (the CLI and MCP add three). The data plane is pure `fetch` with no Node-only APIs, so it runs on Node and Node-compatible runtimes.
+- **Typed and lean.** One fully-typed client you import; the CLI and MCP server are built on it. The data path imports no third-party packages (the three runtime deps — commander, the MCP SDK, and zod — are pulled only by the CLI and MCP server). It is pure `fetch` with no Node-only APIs, so it runs on Node and Node-compatible runtimes.
 - **Safe.** `checkout()` stops at the payment URL. A human finishes 3-D Secure in a browser, by design.
 - **Tested.** 71 tests across the data plane and its parsers.
 
 ## Nutrition, the part nothing else has
 
-Every product carries Tesco's on-pack nutrition, normalized into typed macros (energy, protein, fat, saturates, carbs, sugars, fibre, salt) and structured micronutrients (a named entry per vitamin and mineral, with amount, unit, and % of the Nutrient Reference Value). Free, on **anonymous reads**. And you can search *and rank* by it:
+When Tesco lists a product's on-pack nutrition, basketeer normalizes it into typed macros (energy, protein, fat, saturates, carbs, sugars, fibre, salt) and structured micronutrients (a named entry per vitamin and mineral, with amount, unit, and % of the Nutrient Reference Value). Free, on **anonymous reads** (`nutrition` is `null` when a product has no usable rows). And you can search *and rank* by it:
 
 ```bash
 # "high-protein yogurt, >=10g protein, <=7g sugar, ranked by protein" — live, no login
@@ -140,14 +139,14 @@ console.log("Finish payment in a browser:", url);
 
 The full grocery lifecycle, typed end to end:
 
-- **Nutrition** — typed macros and structured micros on every product; filter and rank a search by nutrition (anonymous)
+- **Nutrition** — typed macros and structured micros, normalized from a product's on-pack rows when present; filter and rank a search by nutrition (anonymous)
 - **Catalogue** — `search`, `getProduct`, `browseCategory` (anonymous); `favourites` / "my usuals" (authed)
 - **Basket** — `add`, `set`, `remove`, `get`
 - **Slots** — delivery and collection: `list` / `book` / `release`
 - **Orders** — `list`, `amend`, `cancel`, `lastFulfilled` (reorder)
 - **Checkout** — `checkout()` returns the payment URL; it never pays
 
-→ Full reference (signatures, return types, the error catalogue, and where the browser runs): **[docs/api.md](docs/api.md)**
+→ Full reference (signatures, return types, the error catalogue, and where the browser runs): **[docs/api.md](https://github.com/tobyandrews1985/basketeer/blob/main/docs/api.md)**
 
 ## How it works
 
@@ -169,7 +168,7 @@ const session = sessionFromCookies(myCookieList); // {name,value}[] => Session
 const client = new Basketeer({ session });        // reads + writes, pure HTTP
 ```
 
-Implement your own backend with the two-method `AuthBackend` (`login`, `refresh`) and three-method `TokenStore` (`load`, `save`, `clear`). `FileTokenStore` and `MemoryTokenStore` ship in the box. The full host matrix is in [docs/api.md](docs/api.md#auth-where-the-browser-runs).
+Implement your own backend with the two-method `AuthBackend` (`login`, `refresh`) and three-method `TokenStore` (`load`, `save`, `clear`). `FileTokenStore` and `MemoryTokenStore` ship in the box. The full host matrix is in [docs/api.md](https://github.com/tobyandrews1985/basketeer/blob/main/docs/api.md#auth-where-the-browser-runs).
 
 > **Serverless note.** A serverless function can't hold a browser, and Tesco's Akamai blocks sign-in from **datacenter** IPs, so a hosted browser needs a **residential** egress. Off-the-shelf managed-browser proxies (Browserbase and similar) are also commonly blocked for supermarket domains. The dependable pattern is a browser on a residential connection you control (a home server, a Pi, the user's device), with the pure-HTTP data plane running anywhere.
 
@@ -209,7 +208,7 @@ A stdio MCP server ships as the `basketeer-mcp` bin, exposing tools (`basketeer_
 
 ## CLI
 
-![The basketeer CLI command palette](docs/media/cli.png)
+![The basketeer CLI command palette](https://raw.githubusercontent.com/tobyandrews1985/basketeer/main/docs/media/cli.png)
 
 The `basketeer` bin prints JSON to stdout, coded errors to stderr. Install globally for the bare command, or prefix with `npx -p basketeer`:
 

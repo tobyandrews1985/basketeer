@@ -3,7 +3,8 @@
  * authenticated session (bearer + customer-uuid + Tesco cookies) is harvested
  * and saved to ~/.basketeer/session.json. Everything after this is pure HTTP.
  *
- *   npx playwright install chromium   # once, if 'chrome' channel is unavailable
+ *   npm install playwright            # optional peer dep, only used for sign-in
+ *   npx playwright install chrome     # the Chrome channel this drives (skip if Chrome is installed)
  *   npm run auth:login
  */
 
