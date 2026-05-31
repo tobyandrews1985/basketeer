@@ -25,10 +25,17 @@ import { z } from "zod";
 
 import { Basketeer, FileTokenStore, BasketeerError } from "./index.js";
 import type { NutritionFilter } from "./index.js";
+import { BrowserAuthBackend } from "./auth/browser/playwright.js";
 
-// One shared client for the process. `resume` loads the saved session (if any);
-// reads still work when there is none.
-const client = await Basketeer.resume({ store: new FileTokenStore() });
+// One shared client for the process. Load any persisted session from disk, then
+// construct with BrowserAuthBackend so authed tools can refresh past the ~1h
+// token lifetime via the lazy on-401 path (no proactive browser launch at startup).
+const _store = new FileTokenStore();
+const client = new Basketeer({
+  session: await _store.load(),
+  store: _store,
+  authBackend: new BrowserAuthBackend(),
+});
 
 /** Wrap a value as MCP JSON text content. */
 function json(value: unknown) {
