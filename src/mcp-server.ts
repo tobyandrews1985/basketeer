@@ -24,6 +24,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 
 import { Basketeer, FileTokenStore, BasketeerError } from "./index.js";
+import type { NutritionFilter } from "./index.js";
 
 // One shared client for the process. `resume` loads the saved session (if any);
 // reads still work when there is none.
@@ -71,6 +72,35 @@ server.tool(
   "List the signed-in customer's favourites ('my usuals'). Requires a saved session.",
   { limit: z.number().int().positive().optional() },
   ({ limit }) => run(() => client.favourites({ limit })),
+);
+
+server.tool(
+  "basketeer_nutrition",
+  "Normalized nutrition (typed macros + micros) for a product by SKU.",
+  { sku: z.string().describe("The product SKU (tpnc).") },
+  ({ sku }) => run(() => client.getProduct(sku).then((p) => p.nutrition)),
+);
+
+server.tool(
+  "basketeer_search_by_nutrition",
+  "Search products by keyword, then filter/rank by nutrition (per 100g/ml). " +
+    "Hydrates each candidate with a throttled product fetch; bounded by `hydrate`.",
+  {
+    query: z.string().describe("Search terms, e.g. 'greek yogurt'."),
+    minProtein: z.number().optional().describe("Minimum protein (g per 100g/ml)."),
+    maxSugar: z.number().optional().describe("Maximum sugars (g per 100g/ml)."),
+    sortBy: z.string().optional().describe("Macro to sort by descending, e.g. 'protein'."),
+    hydrate: z.number().int().positive().optional().describe("Max candidates to fetch nutrition for (default 20)."),
+    limit: z.number().int().positive().optional().describe("Max results to return after filtering."),
+  },
+  ({ query, minProtein, maxSugar, sortBy, hydrate, limit }) =>
+    run(() => {
+      const where: NutritionFilter = {};
+      if (minProtein != null) where.protein = { min: minProtein };
+      if (maxSugar != null) where.sugars = { max: maxSugar };
+      const sort = sortBy ? { by: sortBy, dir: "desc" as const } : undefined;
+      return client.searchByNutrition(query, { where, sort, hydrate, limit });
+    }),
 );
 
 // --- basket (requires a saved session) --------------------------------------
