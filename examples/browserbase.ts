@@ -8,7 +8,7 @@
  * `fetch`.
  *
  * This is a COPY-PASTE RECIPE, deliberately kept OUT of the library so
- * tesco-connect takes no Browserbase dependency. It uses Playwright's CDP
+ * basketeer takes no Browserbase dependency. It uses Playwright's CDP
  * connect + Browserbase's REST API. Verify endpoints against the current
  * Browserbase docs — this is not covered by the repo's tests.
  *
@@ -16,7 +16,7 @@
  * Persist `backend.contextId` between login and refresh so the logged-in cookies
  * survive (Browserbase "contexts" persist a profile across ephemeral sessions).
  *
- * In your app: `import { sessionFromCookies } from "tesco-connect"`.
+ * In your app: `import { sessionFromCookies } from "basketeer"`.
  */
 import { chromium } from "playwright";
 import { sessionFromCookies } from "../src/index.js";
@@ -128,15 +128,15 @@ export class BrowserbaseAuthBackend implements AuthBackend {
 // Example wiring (pseudo): the data plane is pure HTTP; the browser only fires
 // inside the backend, on Browserbase, not in your function's runtime.
 //
-//   import { TescoClient } from "tesco-connect";
+//   import { Basketeer } from "basketeer";
 //   const backend = new BrowserbaseAuthBackend({
 //     apiKey: process.env.BROWSERBASE_API_KEY!,
 //     projectId: process.env.BROWSERBASE_PROJECT_ID!,
 //     contextId: await store.loadContextId(),         // persist across runs
 //     onLoginUrl: (url) => notifyUser(`Connect Tesco: ${url}`),
 //   });
-//   const tesco = new TescoClient({ authBackend: backend, store: myConvexTokenStore });
+//   const tesco = new Basketeer({ authBackend: backend, store: myConvexTokenStore });
 //   await tesco.login();                  // user logs in via the live view (once)
 //   await store.saveContextId(backend.contextId!);
 //   // ...later, anywhere, pure HTTP:
-//   await (await TescoClient.resume({ authBackend: backend, store: myConvexTokenStore })).basket.get();
+//   await (await Basketeer.resume({ authBackend: backend, store: myConvexTokenStore })).basket.get();

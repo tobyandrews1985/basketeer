@@ -4,9 +4,9 @@ import { dirname, join } from "node:path";
 import type { Session } from "../models.js";
 import type { TokenStore } from "./types.js";
 
-const DEFAULT_PATH = join(homedir(), ".tesco-connect", "session.json");
+const DEFAULT_PATH = join(homedir(), ".basketeer", "session.json");
 
-/** Persists the session to `~/.tesco-connect/session.json` (garth-style). */
+/** Persists the session to `~/.basketeer/session.json` (garth-style). */
 export class FileTokenStore implements TokenStore {
   private readonly path: string;
 

@@ -2,10 +2,10 @@
  * Anonymous read demo — pure HTTP, no browser, no credentials.
  *   npm run example:lookup
  */
-import { TescoClient } from "../src/index.js";
+import { Basketeer } from "../src/index.js";
 
 async function main() {
-  const t = new TescoClient(); // anonymous; default 1 req/s throttle
+  const t = new Basketeer(); // anonymous; default 1 req/s throttle
 
   console.log("Search('semi skimmed milk'):");
   const { results } = await t.search("semi skimmed milk", { limit: 5 });
@@ -22,7 +22,7 @@ async function main() {
   console.log(`  packSize=${p.packSize ? `${p.packSize.value}${p.packSize.units}` : "n/a"}`);
   console.log(`  promotions=${p.promotions.length}  nutritionRows=${p.nutrition.length}`);
 
-  console.log("\n✅ Real TescoClient — pure-HTTP anonymous reads working.");
+  console.log("\n✅ Real Basketeer — pure-HTTP anonymous reads working.");
 }
 
 main().catch((e) => {

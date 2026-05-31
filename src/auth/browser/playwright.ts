@@ -30,7 +30,7 @@ const REFRESH_URL =
   "https://www.tesco.com/account/auth/en-GB/refresh-token?soft-refresh=false" +
   "&from=https%3A%2F%2Fwww.tesco.com%2Fshop%2Fen-GB%2Flanding%2Fgroceries";
 
-const DEFAULT_PROFILE_DIR = join(homedir(), ".tesco-connect", "chrome-profile");
+const DEFAULT_PROFILE_DIR = join(homedir(), ".basketeer", "chrome-profile");
 
 // Hides the obvious automation tells before Akamai's scripts run.
 const STEALTH_INIT = `() => {

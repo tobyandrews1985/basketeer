@@ -1,13 +1,13 @@
 {
-  "name": "tesco-connect",
+  "name": "basketeer",
   "version": "0.1.0",
   "description": "Typed, pure-HTTP TypeScript SDK for your own Tesco grocery account — search, basket, delivery slots, and orders over plain fetch. Browser only for login + payment.",
   "type": "module",
   "license": "MIT",
   "author": "Toby Andrews <toby.andrews1985@gmail.com>",
-  "homepage": "https://github.com/tobyandrews/tesco-connect#readme",
-  "repository": { "type": "git", "url": "git+https://github.com/tobyandrews/tesco-connect.git" },
-  "bugs": { "url": "https://github.com/tobyandrews/tesco-connect/issues" },
+  "homepage": "https://github.com/tobyandrews1985/basketeer#readme",
+  "repository": { "type": "git", "url": "git+https://github.com/tobyandrews1985/basketeer.git" },
+  "bugs": { "url": "https://github.com/tobyandrews1985/basketeer/issues" },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -21,8 +21,8 @@
     }
   },
   "bin": {
-    "tesco": "./dist/cli.js",
-    "tesco-mcp": "./dist/mcp-server.js"
+    "basketeer": "./dist/cli.js",
+    "basketeer-mcp": "./dist/mcp-server.js"
   },
   "files": ["dist", "README.md", "LICENSE"],
   "engines": { "node": ">=18" },

@@ -51,7 +51,7 @@ export const FULFILMENT_TYPE = {
 export type FulfilmentType = (typeof FULFILMENT_TYPE)[keyof typeof FULFILMENT_TYPE];
 
 /**
- * Build a category `facet` for {@link TescoClient.browseCategory} from a
+ * Build a category `facet` for {@link Basketeer.browseCategory} from a
  * department name. Tesco encodes it as `"b;" + base64(name)` — e.g.
  * `categoryFacet("Fresh Food")`. Uses the cross-runtime `btoa` (works in Node,
  * Bun, Deno, browsers, workers). You can also lift a `facet` straight from a

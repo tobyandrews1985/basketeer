@@ -9,8 +9,11 @@ node_modules/
 .DS_Store
 .claude/
 
+# local working notes / scratch (agent handoffs, captures) — not for the public repo
+state/
+
 # local secrets & harvested sessions — never commit
 .env
 .env.*
 *.session
-.tesco-connect/
+.basketeer/

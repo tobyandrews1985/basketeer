@@ -1,21 +1,21 @@
 #!/usr/bin/env node
 /**
- * tesco-connect MCP server (stdio).
+ * basketeer MCP server (stdio).
  *
  * Exposes the SDK as Model Context Protocol tools so an MCP agent (Claude
  * Desktop, etc.) can browse the catalogue, fill a basket, and prepare checkout.
  *
- * The client is built with `TescoClient.resume({ store: new FileTokenStore() })`:
+ * The client is built with `Basketeer.resume({ store: new FileTokenStore() })`:
  *   - Reads (search/product/favourites/slots/orders) work anonymously.
  *   - Authed ops reuse whatever session was saved to
- *     `~/.tesco-connect/session.json` (mint one with the SDK's login flow).
+ *     `~/.basketeer/session.json` (mint one with the SDK's login flow).
  *
- * ETHICS CEILING: this server NEVER places or pays for an order. `tesco_checkout`
+ * ETHICS CEILING: this server NEVER places or pays for an order. `basketeer_checkout`
  * hands back the payment URL and a note that a human must complete payment in a
  * browser (Tesco's 3-D Secure / CSRF-protected checkout is browser-bound by
  * design). Listing/cancelling orders is fine; paying is not automated.
  *
- * Run: `tesco-mcp` (stdio). Configure it as an MCP server in your agent.
+ * Run: `basketeer-mcp` (stdio). Configure it as an MCP server in your agent.
  */
 
 import { fileURLToPath } from "node:url";
@@ -23,11 +23,11 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-import { TescoClient, FileTokenStore, TescoError } from "./index.js";
+import { Basketeer, FileTokenStore, BasketeerError } from "./index.js";
 
 // One shared client for the process. `resume` loads the saved session (if any);
 // reads still work when there is none.
-const client = await TescoClient.resume({ store: new FileTokenStore() });
+const client = await Basketeer.resume({ store: new FileTokenStore() });
 
 /** Wrap a value as MCP JSON text content. */
 function json(value: unknown) {
@@ -40,7 +40,7 @@ async function run(fn: () => Promise<unknown>) {
     return json(await fn());
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    const kind = err instanceof TescoError ? err.name : "Error";
+    const kind = err instanceof BasketeerError ? err.name : "Error";
     return {
       isError: true,
       content: [{ type: "text" as const, text: JSON.stringify({ error: kind, message }, null, 2) }],
@@ -48,26 +48,26 @@ async function run(fn: () => Promise<unknown>) {
   }
 }
 
-const server = new McpServer({ name: "tesco-connect", version: "0.1.0" });
+const server = new McpServer({ name: "basketeer", version: "0.1.0" });
 
 // --- reads (anonymous OK) ---------------------------------------------------
 
 server.tool(
-  "tesco_search",
+  "basketeer_search",
   "Search the Tesco grocery catalogue. Returns matching products with SKU, title, price, and any offers.",
   { query: z.string().describe("Search terms, e.g. 'semi skimmed milk'."), limit: z.number().int().positive().optional() },
   ({ query, limit }) => run(() => client.search(query, { limit })),
 );
 
 server.tool(
-  "tesco_product",
+  "basketeer_product",
   "Fetch one product by SKU (tpnc), including price, pack size, promotions, and nutrition.",
   { sku: z.string().describe("The product SKU (tpnc), e.g. from a search result.") },
   ({ sku }) => run(() => client.getProduct(sku)),
 );
 
 server.tool(
-  "tesco_favourites",
+  "basketeer_favourites",
   "List the signed-in customer's favourites ('my usuals'). Requires a saved session.",
   { limit: z.number().int().positive().optional() },
   ({ limit }) => run(() => client.favourites({ limit })),
@@ -76,14 +76,14 @@ server.tool(
 // --- basket (requires a saved session) --------------------------------------
 
 server.tool(
-  "tesco_basket_get",
+  "basketeer_basket_get",
   "Get the current basket: line items, quantities, and guide price.",
   {},
   () => run(() => client.basket.get()),
 );
 
 server.tool(
-  "tesco_basket_set",
+  "basketeer_basket_set",
   "Set a SKU's basket line to an exact quantity (set-not-increment). quantity 0 removes the line.",
   {
     sku: z.string().describe("The product SKU (tpnc) to set."),
@@ -93,7 +93,7 @@ server.tool(
 );
 
 server.tool(
-  "tesco_basket_remove",
+  "basketeer_basket_remove",
   "Remove a SKU from the basket entirely.",
   { sku: z.string().describe("The product SKU (tpnc) to remove.") },
   ({ sku }) => run(() => client.basket.remove(sku)),
@@ -102,7 +102,7 @@ server.tool(
 // --- slots (requires a saved session) ---------------------------------------
 
 server.tool(
-  "tesco_slots_list",
+  "basketeer_slots_list",
   "List delivery slots over a date window (defaults to today..+6 days). Dates are YYYY-MM-DD.",
   {
     start: z.string().optional().describe("Window start, YYYY-MM-DD."),
@@ -114,21 +114,21 @@ server.tool(
 // --- orders (requires a saved session) --------------------------------------
 
 server.tool(
-  "tesco_orders_list",
+  "basketeer_orders_list",
   "List upcoming (pending) orders with their items, slot, and amend window.",
   {},
   () => run(() => client.orders.list()),
 );
 
 server.tool(
-  "tesco_orders_cancel",
+  "basketeer_orders_cancel",
   "Cancel an upcoming order outright (only before its amend/cancel cutoff).",
   { orderNo: z.string().describe("The order number to cancel.") },
   ({ orderNo }) => run(() => client.orders.cancel(orderNo).then(() => ({ cancelled: orderNo }))),
 );
 
 server.tool(
-  "tesco_reorder_last",
+  "basketeer_reorder_last",
   "Get the last delivered order and its items, for 'reorder my usual shop'. Returns null if none.",
   {},
   () => run(() => client.orders.lastFulfilled()),
@@ -137,7 +137,7 @@ server.tool(
 // --- checkout (boundary: stops at the payment URL) --------------------------
 
 server.tool(
-  "tesco_checkout",
+  "basketeer_checkout",
   "Prepare checkout: returns the current basket and the URL where a HUMAN completes payment in a browser. " +
     "This server never places or pays for an order — Tesco's 3-D Secure payment step is browser-bound by design.",
   {},

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * `tesco` — a thin CLI over the tesco-connect SDK.
+ * `basketeer` — a thin CLI over the basketeer SDK.
  *
  * Reads work anonymously; writes (basket / slots / orders / checkout) resume a
  * persisted session via {@link FileTokenStore} and, for `login`, mint one with
@@ -11,7 +11,7 @@
 
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
-import { TescoClient, FileTokenStore, TescoError } from "./index.js";
+import { Basketeer, FileTokenStore, BasketeerError } from "./index.js";
 import { BrowserAuthBackend } from "./auth/browser/playwright.js";
 
 /** Pretty-print any JSON-serialisable value to stdout. */
@@ -22,19 +22,19 @@ function emit(value: unknown): void {
 const store = new FileTokenStore();
 
 /** Resume a persisted session for authenticated commands (refreshing if able). */
-function authedClient(): Promise<TescoClient> {
-  return TescoClient.resume({ store, authBackend: new BrowserAuthBackend() });
+function authedClient(): Promise<Basketeer> {
+  return Basketeer.resume({ store, authBackend: new BrowserAuthBackend() });
 }
 
 /** Anonymous client for read-only commands (no session required). */
-function readClient(): TescoClient {
-  return new TescoClient();
+function readClient(): Basketeer {
+  return new Basketeer();
 }
 
 const program = new Command();
 program
-  .name("tesco")
-  .description("Typed CLI for Tesco grocery automation (tesco-connect).")
+  .name("basketeer")
+  .description("Typed CLI for Tesco grocery automation (basketeer).")
   .showHelpAfterError();
 
 // --- auth -------------------------------------------------------------------
@@ -43,7 +43,7 @@ program
   .command("login")
   .description("Open a real Chrome to sign in, then persist the harvested session.")
   .action(async () => {
-    const client = new TescoClient({ store, authBackend: new BrowserAuthBackend() });
+    const client = new Basketeer({ store, authBackend: new BrowserAuthBackend() });
     const session = await client.login();
     emit({ ok: true, customerUuid: session.customerUuid, expiresAt: session.accessTokenExpiry ?? null });
   });
@@ -187,7 +187,7 @@ program
 // Only parse argv when run as a binary, so the module is importable (tests).
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   program.parseAsync().catch((err: unknown) => {
-    const name = err instanceof TescoError ? err.name : "Error";
+    const name = err instanceof BasketeerError ? err.name : "Error";
     const message = err instanceof Error ? err.message : String(err);
     process.stderr.write(`${name}: ${message}\n`);
     process.exit(1);

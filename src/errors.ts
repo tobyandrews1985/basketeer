@@ -1,5 +1,5 @@
 /** Base class for every error this library throws. */
-export class TescoError extends Error {
+export class BasketeerError extends Error {
   constructor(message: string) {
     super(message);
     this.name = new.target.name;
@@ -11,13 +11,13 @@ export class TescoError extends Error {
  * Callers must re-authenticate — interactively for OSS users, or via the
  * consumer's own re-login flow.
  */
-export class AuthExpiredError extends TescoError {}
+export class AuthExpiredError extends BasketeerError {}
 
 /**
  * Tesco returned 429/403 (rate limited or bot-blocked). The client never
  * retry-storms: it surfaces this so callers back off. Honour polite usage.
  */
-export class RateLimitedError extends TescoError {
+export class RateLimitedError extends BasketeerError {
   readonly status: number;
   constructor(status: number, message: string) {
     super(message);
@@ -30,13 +30,13 @@ export class RateLimitedError extends TescoError {
  * Client`). The public key rotates ~monthly — set `TESCO_API_KEY` or update
  * `PUBLIC_API_KEY`. This is a configuration error, never retryable.
  */
-export class ApiKeyError extends TescoError {}
+export class ApiKeyError extends BasketeerError {}
 
 /** Thrown when a requested resource does not exist (e.g. an unknown SKU). */
-export class NotFoundError extends TescoError {}
+export class NotFoundError extends BasketeerError {}
 
 /** The GraphQL response carried an `errors` array (non-auth). */
-export class GraphQLRequestError extends TescoError {
+export class GraphQLRequestError extends BasketeerError {
   /** The raw GraphQL errors, for programmatic inspection. */
   readonly errors: unknown[];
   constructor(errors: unknown[]) {
@@ -59,7 +59,7 @@ function scrubSecrets(s: string): string {
 }
 
 /** A basket line update was rejected by Tesco (updates.items[].successful === false). */
-export class LineRejectedError extends TescoError {
+export class LineRejectedError extends BasketeerError {
   readonly lineId: string;
   constructor(lineId: string) {
     super(`Tesco rejected basket line ${lineId}`);

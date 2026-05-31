@@ -1,16 +1,16 @@
 /**
  * Bring your own auth — the un-opinionated path.
  *
- * tesco-connect hosts nothing and hard-depends on no browser. It only needs a
+ * basketeer hosts nothing and hard-depends on no browser. It only needs a
  * `Session` ({ accessToken, customerUuid, cookies }). HOW you mint and store
  * that session is entirely yours. This file shows the three injection points.
  *
  *   npx tsx examples/bring-your-own-auth.ts        # runs demo #1 (anonymous-safe)
  *
- * (In your app: `import { ... } from "tesco-connect"`. This repo example imports
+ * (In your app: `import { ... } from "basketeer"`. This repo example imports
  *  from ../src so it runs without a published build.)
  */
-import { TescoClient, sessionFromCookies } from "../src/index.js";
+import { Basketeer, sessionFromCookies } from "../src/index.js";
 import type { AuthBackend, Credentials, Session, TokenStore } from "../src/index.js";
 
 // ─── 1) Inject a session you obtained however you like ──────────────────────
@@ -18,12 +18,12 @@ import type { AuthBackend, Credentials, Session, TokenStore } from "../src/index
 // machine? Turn the cookie list into a Session and hand it straight in.
 function clientFromHarvestedCookies(cookies: { name: string; value: string }[]) {
   const session = sessionFromCookies(cookies); // keeps only the cookies that matter
-  return new TescoClient({ session }); // reads + writes, pure HTTP, zero browser here
+  return new Basketeer({ session }); // reads + writes, pure HTTP, zero browser here
 }
 
 // Or if you already have the raw values, skip the helper entirely:
 function clientFromRawSession(session: Session) {
-  return new TescoClient({ session });
+  return new Basketeer({ session });
 }
 
 // ─── 2) Your own AuthBackend (where the browser/credentials live is YOUR call)
@@ -60,7 +60,7 @@ class KvTokenStore implements TokenStore {
 // Wire them together — the library auto-refreshes via your backend and persists
 // via your store; the data plane stays pure HTTP everywhere.
 async function wireItUp() {
-  const client = await TescoClient.resume({
+  const client = await Basketeer.resume({
     store: new KvTokenStore(new Map()),
     authBackend: new MySecretStoreAuthBackend(),
   });
@@ -73,7 +73,7 @@ async function main() {
   void clientFromRawSession;
   void wireItUp;
 
-  const t = new TescoClient(); // no session, no backend, no store
+  const t = new Basketeer(); // no session, no backend, no store
   const { results } = await t.search("oat milk", { limit: 1 });
   const first = results[0];
   console.log(`anonymous read works with zero auth wiring: ${first?.sku} ${first?.title}`);

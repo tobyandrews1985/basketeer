@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { TescoClient } from "../src/client.js";
+import { Basketeer } from "../src/client.js";
 import { parsePromotions, parseProductNode, isoDate } from "../src/parsers.js";
 import { UPDATE_BASKET } from "../src/queries.js";
 import { categoryFacet } from "../src/operations.js";
@@ -37,7 +37,7 @@ describe("parsers are defensive", () => {
       },
     ];
     const { impl } = stubFetch([{ body }]);
-    const t = new TescoClient({ throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({ throttleMs: 0, fetchImpl: impl });
     const { results } = await t.search("milk");
     expect(results).toHaveLength(1);
     expect(results[0]!.sku).toBe("1");
@@ -61,7 +61,7 @@ describe("isoDate / categoryFacet", () => {
 describe("transport hardening", () => {
   it("throttles concurrent calls serially (not all at once)", async () => {
     const { impl, calls } = stubFetch([{ body: [{ data: { search: { results: [] } } }] }]);
-    const t = new TescoClient({ throttleMs: 40, fetchImpl: impl });
+    const t = new Basketeer({ throttleMs: 40, fetchImpl: impl });
     await Promise.all([t.search("a"), t.search("b"), t.search("c")]);
     expect(calls).toHaveLength(3);
     // Without a real gate these fire within ~1ms; with it they're ~throttleMs apart.
@@ -76,7 +76,7 @@ describe("transport hardening", () => {
       login: async () => SESSION,
       refresh: async () => SESSION, // refresh "succeeds" but token still rejected
     };
-    const t = new TescoClient({ session: SESSION, authBackend: backend, throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({ session: SESSION, authBackend: backend, throttleMs: 0, fetchImpl: impl });
     await expect(t.basket.get()).rejects.toBeInstanceOf(AuthExpiredError);
   });
 
@@ -116,7 +116,7 @@ describe("basket write returns a full-fidelity basket", () => {
       },
     ];
     const { impl } = stubFetch([{ body }]);
-    const t = new TescoClient({ session: SESSION, throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({ session: SESSION, throttleMs: 0, fetchImpl: impl });
     const basket = await t.basket.set("111", 1);
     expect(basket.guidePrice).toBe(41.5);
     expect(basket.isInAmend).toBe(true);

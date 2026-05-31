@@ -6,11 +6,11 @@
  *
  *   npx tsx examples/orders.ts
  */
-import { TescoClient, FileTokenStore } from "../src/index.js";
+import { Basketeer, FileTokenStore } from "../src/index.js";
 import { BrowserAuthBackend } from "../src/auth/browser/playwright.js";
 
 async function main() {
-  const t = await TescoClient.resume({
+  const t = await Basketeer.resume({
     store: new FileTokenStore(),
     authBackend: new BrowserAuthBackend(), // only used if the token needs refreshing
   });

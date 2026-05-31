@@ -1,8 +1,8 @@
 // Public API surface. Everything exported here is part of the semver contract;
 // internal modules (transport, queries, parsers, session-manager) are not.
 
-export { TescoClient } from "./client.js";
-export type { TescoClientOptions, BasketItemInput, Amendment } from "./client.js";
+export { Basketeer } from "./client.js";
+export type { BasketeerOptions, BasketItemInput, Amendment } from "./client.js";
 
 // Storage seam
 export { FileTokenStore } from "./store/file-store.js";
@@ -34,7 +34,7 @@ export type {
 
 // Errors
 export {
-  TescoError,
+  BasketeerError,
   AuthExpiredError,
   RateLimitedError,
   ApiKeyError,

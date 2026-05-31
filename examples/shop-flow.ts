@@ -1,16 +1,16 @@
 /**
  * End-to-end shop, up to (but NOT through) payment. Resume the harvested
  * session, fill a basket, list delivery slots, then hand back the checkout URL.
- * tesco-connect deliberately STOPS at the payment URL — a human finishes the
+ * basketeer deliberately STOPS at the payment URL — a human finishes the
  * 3-D Secure card step in a browser. Run `npm run auth:login` first.
  *
  *   npx tsx examples/shop-flow.ts
  */
-import { TescoClient, FileTokenStore } from "../src/index.js";
+import { Basketeer, FileTokenStore } from "../src/index.js";
 import { BrowserAuthBackend } from "../src/auth/browser/playwright.js";
 
 async function main() {
-  const t = await TescoClient.resume({
+  const t = await Basketeer.resume({
     store: new FileTokenStore(),
     authBackend: new BrowserAuthBackend(), // only used if the token needs refreshing
   });

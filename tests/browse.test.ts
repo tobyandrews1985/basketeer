@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { TescoClient } from "../src/client.js";
+import { Basketeer } from "../src/client.js";
 import { stubFetch, SESSION } from "./helpers.js";
 
 /** Favourites returns bare ProductInterface nodes under favourites.products[]. */
@@ -69,7 +69,7 @@ const CATEGORY_BODY = [
 describe("favourites", () => {
   it("sends GetFavourites and parses favourites.products[] into SearchResult[]", async () => {
     const { impl, calls } = stubFetch([{ body: FAVOURITES_BODY }]);
-    const t = new TescoClient({ session: SESSION, throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({ session: SESSION, throttleMs: 0, fetchImpl: impl });
     const { results } = await t.favourites({ limit: 50 });
 
     const op = calls[0]!.body[0];
@@ -92,7 +92,7 @@ describe("favourites", () => {
 describe("browseCategory", () => {
   it("sends GetCategoryProducts and parses category.results[].node into SearchResult[]", async () => {
     const { impl, calls } = stubFetch([{ body: CATEGORY_BODY }]);
-    const t = new TescoClient({ session: SESSION, throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({ session: SESSION, throttleMs: 0, fetchImpl: impl });
     const { results } = await t.browseCategory("b;RnJlc2ggRm9vZA==", { limit: 24 });
 
     const op = calls[0]!.body[0];

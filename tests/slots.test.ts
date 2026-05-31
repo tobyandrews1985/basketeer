@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { TescoClient } from "../src/client.js";
+import { Basketeer } from "../src/client.js";
 import { stubFetch, SESSION } from "./helpers.js";
 
 const DELIVERY_SLOTS_BODY = [
@@ -74,7 +74,7 @@ const FULFILMENT_BODY = [
 describe("slots.list (delivery)", () => {
   it("sends DeliverySlots and parses data.delivery[] into Slot[]", async () => {
     const { impl, calls } = stubFetch([{ body: DELIVERY_SLOTS_BODY }]);
-    const t = new TescoClient({ session: SESSION, throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({ session: SESSION, throttleMs: 0, fetchImpl: impl });
     const slots = await t.slots.list({ start: "2026-06-01", end: "2026-06-01" });
 
     const op = calls[0]!.body[0];
@@ -106,7 +106,7 @@ describe("slots.list (delivery)", () => {
 describe("slots.listCollection", () => {
   it("sends CollectionSlots and parses data.collection[] into Slot[]", async () => {
     const { impl, calls } = stubFetch([{ body: COLLECTION_SLOTS_BODY }]);
-    const t = new TescoClient({ session: SESSION, throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({ session: SESSION, throttleMs: 0, fetchImpl: impl });
     const slots = await t.slots.listCollection({
       start: "2026-06-02",
       end: "2026-06-02",
@@ -133,7 +133,7 @@ describe("slots.listCollection", () => {
 describe("slots.book", () => {
   it("sends the Fulfilment mutation with {slotId, action:'BOOK'} and parses fulfilment.slot", async () => {
     const { impl, calls } = stubFetch([{ body: FULFILMENT_BODY }]);
-    const t = new TescoClient({ session: SESSION, throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({ session: SESSION, throttleMs: 0, fetchImpl: impl });
     const booked = await t.slots.book("slot-1");
 
     const op = calls[0]!.body[0];

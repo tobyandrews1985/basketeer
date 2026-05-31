@@ -34,7 +34,7 @@ import {
   parseOrder,
   isoDate,
 } from "./parsers.js";
-import { LineRejectedError, NotFoundError, TescoError } from "./errors.js";
+import { LineRejectedError, NotFoundError, BasketeerError } from "./errors.js";
 import type { AuthBackend, Credentials } from "./auth/types.js";
 import type { TokenStore } from "./store/types.js";
 import type {
@@ -48,7 +48,7 @@ import type {
   Slot,
 } from "./models.js";
 
-export interface TescoClientOptions {
+export interface BasketeerOptions {
   /** A ready-made session (e.g. harvested elsewhere). */
   session?: Session | null;
   /** Persists/loads the session. */
@@ -83,7 +83,7 @@ function normaliseItem(item: BasketItemInput): Record<string, unknown> {
 }
 
 /**
- * A handle to an order opened for amendment (see {@link TescoClient.orders}.amend).
+ * A handle to an order opened for amendment (see {@link Basketeer.orders}.amend).
  * Its basket ops apply to the amended order; finish by checking out again, or
  * `discard()` to leave the order unchanged.
  */
@@ -99,12 +99,12 @@ export interface Amendment {
   discard(): Promise<void>;
 }
 
-export class TescoClient {
+export class Basketeer {
   private readonly transport: GraphQLTransport;
   private readonly sessions: SessionManager;
   private _amendingOrderNo: string | null = null;
 
-  constructor(opts: TescoClientOptions = {}) {
+  constructor(opts: BasketeerOptions = {}) {
     this.sessions = new SessionManager({
       session: opts.session,
       backend: opts.authBackend,
@@ -120,8 +120,8 @@ export class TescoClient {
   }
 
   /** Resume a persisted session, refreshing proactively if it has expired. */
-  static async resume(opts: TescoClientOptions = {}): Promise<TescoClient> {
-    const client = new TescoClient(opts);
+  static async resume(opts: BasketeerOptions = {}): Promise<Basketeer> {
+    const client = new Basketeer(opts);
     await client.sessions.load();
     if (client.sessions.isExpired() && opts.authBackend) {
       await client.sessions.refresh();
@@ -329,7 +329,7 @@ export class TescoClient {
 
   /**
    * Prepare for payment. Returns the current basket and the URL where payment
-   * is completed **in a browser**. tesco-connect deliberately stops here:
+   * is completed **in a browser**. basketeer deliberately stops here:
    * Tesco's payment step is a separate CSRF-protected checkout app + 3-D Secure
    * card authentication — browser-bound by design and PCI/fraud-sensitive. Fill
    * the basket and book a slot via this SDK, then complete payment at `url`.
@@ -392,7 +392,7 @@ export class TescoClient {
       mfeName: MFE.slots,
     });
     const slot = data.fulfilment?.slot;
-    if (!slot) throw new TescoError(`Slot ${action} returned no slot`);
+    if (!slot) throw new BasketeerError(`Slot ${action} returned no slot`);
     return parseBookedSlot(slot);
   }
 }

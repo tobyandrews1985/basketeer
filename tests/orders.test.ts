@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { TescoClient } from "../src/client.js";
+import { Basketeer } from "../src/client.js";
 import { stubFetch, SESSION } from "./helpers.js";
 
 const UPCOMING_ORDERS_BODY = [
@@ -45,7 +45,7 @@ const LAST_FULFILLED_BODY = [
 describe("orders.list", () => {
   it("sends GetUpcomingOrders and parses orderSearch.orders[] into Order[]", async () => {
     const { impl, calls } = stubFetch([{ body: UPCOMING_ORDERS_BODY }]);
-    const t = new TescoClient({ session: SESSION, throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({ session: SESSION, throttleMs: 0, fetchImpl: impl });
     const orders = await t.orders.list();
 
     const op = calls[0]!.body[0];
@@ -71,7 +71,7 @@ describe("orders.list", () => {
 describe("orders.cancel", () => {
   it("sends CancelOrder with {orderNo}", async () => {
     const { impl, calls } = stubFetch([{ body: [{ data: { order: { id: "order-id-1" } } }] }]);
-    const t = new TescoClient({ session: SESSION, throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({ session: SESSION, throttleMs: 0, fetchImpl: impl });
     await t.orders.cancel("100200300");
 
     const op = calls[0]!.body[0];
@@ -84,7 +84,7 @@ describe("orders.cancel", () => {
 describe("orders.lastFulfilled", () => {
   it("sends GetLastFulfilledOrder and parses order{} into an Order", async () => {
     const { impl, calls } = stubFetch([{ body: LAST_FULFILLED_BODY }]);
-    const t = new TescoClient({ session: SESSION, throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({ session: SESSION, throttleMs: 0, fetchImpl: impl });
     const order = await t.orders.lastFulfilled();
 
     const op = calls[0]!.body[0];
@@ -100,7 +100,7 @@ describe("orders.lastFulfilled", () => {
 
   it("returns null when no last-fulfilled order exists", async () => {
     const { impl } = stubFetch([{ body: [{ data: { order: null } }] }]);
-    const t = new TescoClient({ session: SESSION, throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({ session: SESSION, throttleMs: 0, fetchImpl: impl });
     expect(await t.orders.lastFulfilled()).toBeNull();
   });
 });

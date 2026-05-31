@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { TescoClient } from "../src/client.js";
+import { Basketeer } from "../src/client.js";
 import { ApiKeyError, RateLimitedError, LineRejectedError, AuthExpiredError } from "../src/errors.js";
 import type { AuthBackend } from "../src/auth/types.js";
 import { stubFetch, SESSION } from "./helpers.js";
@@ -75,7 +75,7 @@ const PRODUCT_LOOSE = [
 describe("request assembly", () => {
   it("sends the xapi header set and a JSON-array body with mfeName", async () => {
     const { impl, calls } = stubFetch([{ body: SEARCH_BODY }]);
-    const t = new TescoClient({ throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({ throttleMs: 0, fetchImpl: impl });
     await t.search("milk");
 
     const { headers, body } = calls[0]!;
@@ -91,7 +91,7 @@ describe("request assembly", () => {
 
   it("omits auth headers when anonymous", async () => {
     const { impl, calls } = stubFetch([{ body: SEARCH_BODY }]);
-    const t = new TescoClient({ throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({ throttleMs: 0, fetchImpl: impl });
     await t.search("milk");
     expect(calls[0]!.headers["authorization"]).toBeUndefined();
     expect(calls[0]!.headers["customer-uuid"]).toBeUndefined();
@@ -99,7 +99,7 @@ describe("request assembly", () => {
 
   it("injects Bearer + customer-uuid + cookie when a session is present", async () => {
     const { impl, calls } = stubFetch([{ body: [{ data: { basket: { id: "b1", items: [] } } }] }]);
-    const t = new TescoClient({ session: SESSION, throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({ session: SESSION, throttleMs: 0, fetchImpl: impl });
     await t.basket.get();
     const h = calls[0]!.headers;
     expect(h["authorization"]).toBe("Bearer header.payload.sig");
@@ -112,7 +112,7 @@ describe("request assembly", () => {
 describe("parsing", () => {
   it("parses search results incl. nullable promotion.beforeDiscount", async () => {
     const { impl } = stubFetch([{ body: SEARCH_BODY }]);
-    const t = new TescoClient({ throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({ throttleMs: 0, fetchImpl: impl });
     const { results } = await t.search("milk");
     const r = results[0];
     expect(r!.sku).toBe("254656543");
@@ -124,14 +124,14 @@ describe("parsing", () => {
 
   it("coerces packSize array (string value, uppercase units) to a number", async () => {
     const { impl } = stubFetch([{ body: PRODUCT_PACKAGED }]);
-    const t = new TescoClient({ throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({ throttleMs: 0, fetchImpl: impl });
     const p = await t.getProduct("282822189");
     expect(p.packSize).toEqual({ value: 1750, units: "ML" });
   });
 
   it("handles null packSize (loose produce) without throwing", async () => {
     const { impl } = stubFetch([{ body: PRODUCT_LOOSE }]);
-    const t = new TescoClient({ throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({ throttleMs: 0, fetchImpl: impl });
     const p = await t.getProduct("275280804");
     expect(p.packSize).toBeNull();
     expect(p.price.actual).toBe(0.17);
@@ -141,19 +141,19 @@ describe("parsing", () => {
 describe("error taxonomy", () => {
   it('maps 403 "Invalid Client" to ApiKeyError', async () => {
     const { impl } = stubFetch([{ status: 403, body: "Forbidden: Invalid Client" }]);
-    const t = new TescoClient({ throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({ throttleMs: 0, fetchImpl: impl });
     await expect(t.search("milk")).rejects.toBeInstanceOf(ApiKeyError);
   });
 
   it("maps a generic 403 to RateLimitedError", async () => {
     const { impl } = stubFetch([{ status: 403, body: "Access Denied" }]);
-    const t = new TescoClient({ throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({ throttleMs: 0, fetchImpl: impl });
     await expect(t.search("milk")).rejects.toBeInstanceOf(RateLimitedError);
   });
 
   it("maps 429 to RateLimitedError", async () => {
     const { impl } = stubFetch([{ status: 429, body: "slow down" }]);
-    const t = new TescoClient({ throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({ throttleMs: 0, fetchImpl: impl });
     await expect(t.search("milk")).rejects.toBeInstanceOf(RateLimitedError);
   });
 
@@ -162,7 +162,7 @@ describe("error taxonomy", () => {
       { data: { basket: { id: "b1", items: [], updates: { items: [{ id: "999", successful: false }] } } } },
     ];
     const { impl } = stubFetch([{ body }]);
-    const t = new TescoClient({ session: SESSION, throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({ session: SESSION, throttleMs: 0, fetchImpl: impl });
     await expect(t.basket.set("999", 1)).rejects.toBeInstanceOf(LineRejectedError);
   });
 });
@@ -181,7 +181,7 @@ describe("401 refresh-and-retry", () => {
         return { ...SESSION, accessToken: "new.token.sig" };
       },
     };
-    const t = new TescoClient({ session: SESSION, authBackend: backend, throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({ session: SESSION, authBackend: backend, throttleMs: 0, fetchImpl: impl });
     const basket = await t.basket.get();
     expect(refreshed).toBe(1);
     expect(calls.length).toBe(2);
@@ -193,7 +193,7 @@ describe("401 refresh-and-retry", () => {
   it("throws AuthExpiredError when refresh is impossible (no backend)", async () => {
     const unauthorized = [{ errors: [{ message: "unauthorized", extensions: { http: { status: 401 } } }] }];
     const { impl } = stubFetch([{ body: unauthorized }]);
-    const t = new TescoClient({ session: SESSION, throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({ session: SESSION, throttleMs: 0, fetchImpl: impl });
     await expect(t.basket.get()).rejects.toBeInstanceOf(AuthExpiredError);
   });
 });
