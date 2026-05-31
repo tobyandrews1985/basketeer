@@ -1,23 +1,37 @@
 // tests/nutrition.test.ts
-import { describe, it, expect } from "vitest";
+
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { parseNutrition, filterByNutrition } from "../src/nutrition.js";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
 import type { Product } from "../src/models.js";
+import { filterByNutrition, parseNutrition } from "../src/nutrition.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const fixture = (n: string) => JSON.parse(readFileSync(join(here, "fixtures/nutrition", n), "utf8"));
+const fixture = (n: string) =>
+  JSON.parse(readFileSync(join(here, "fixtures/nutrition", n), "utf8"));
 
 describe("parseNutrition", () => {
   it("normalizes the Oatly drink (per 100ml, split energy, micros)", () => {
     const n = parseNutrition(fixture("oatly-barista.json"))!;
     expect(n.basis).toBe("per_100ml");
     expect(n.macros).toMatchObject({
-      energyKj: 257, energyKcal: 61, fat: 3.0, saturates: 0.3,
-      carbs: 7.1, sugars: 3.4, fibre: 0.8, protein: 1.1, salt: 0.10,
+      energyKj: 257,
+      energyKcal: 61,
+      fat: 3.0,
+      saturates: 0.3,
+      carbs: 7.1,
+      sugars: 3.4,
+      fibre: 0.8,
+      protein: 1.1,
+      salt: 0.1,
     });
-    expect(n.micros).toContainEqual({ name: "Vitamin B12", amount: 0.38, unit: "µg", nrvPercent: 15 });
+    expect(n.micros).toContainEqual({
+      name: "Vitamin B12",
+      amount: 0.38,
+      unit: "µg",
+      nrvPercent: 15,
+    });
     expect(n.micros).toContainEqual({ name: "Calcium", amount: 120, unit: "mg", nrvPercent: 15 });
     expect(n.micros).toHaveLength(5);
   });
@@ -26,8 +40,15 @@ describe("parseNutrition", () => {
     const n = parseNutrition(fixture("chicken-breast.json"))!;
     expect(n.basis).toBe("per_100g");
     expect(n.macros).toMatchObject({
-      energyKj: 486, energyKcal: 115, fat: 3.3, saturates: 0.8,
-      carbs: 0, sugars: 0, fibre: 0, protein: 21.5, salt: 0.18,
+      energyKj: 486,
+      energyKcal: 115,
+      fat: 3.3,
+      saturates: 0.8,
+      carbs: 0,
+      sugars: 0,
+      fibre: 0,
+      protein: 21.5,
+      salt: 0.18,
     });
     expect(n.micros).toHaveLength(0);
   });
@@ -56,16 +77,44 @@ describe("parseNutrition", () => {
 
 type Basis = "per_100g" | "per_100ml";
 
-function product(sku: string, basis: Basis | null, macros: Partial<Record<string, number>>): Product {
-  const nutrition = basis === null ? null : {
-    basis, micros: [], raw: [],
-    macros: {
-      energyKcal: null, energyKj: null, protein: null, fat: null, saturates: null,
-      carbs: null, sugars: null, fibre: null, salt: null, ...macros,
-    },
-  };
-  return { sku, tpnb: sku, title: sku, brand: null, price: null, onOffer: null,
-    promotions: [], packSize: null, nutrition, macros: nutrition?.macros ?? null, raw: {} } as unknown as Product;
+function product(
+  sku: string,
+  basis: Basis | null,
+  macros: Partial<Record<string, number>>,
+): Product {
+  const nutrition =
+    basis === null
+      ? null
+      : {
+          basis,
+          micros: [],
+          raw: [],
+          macros: {
+            energyKcal: null,
+            energyKj: null,
+            protein: null,
+            fat: null,
+            saturates: null,
+            carbs: null,
+            sugars: null,
+            fibre: null,
+            salt: null,
+            ...macros,
+          },
+        };
+  return {
+    sku,
+    tpnb: sku,
+    title: sku,
+    brand: null,
+    price: null,
+    onOffer: null,
+    promotions: [],
+    packSize: null,
+    nutrition,
+    macros: nutrition?.macros ?? null,
+    raw: {},
+  } as unknown as Product;
 }
 
 describe("filterByNutrition", () => {
@@ -78,17 +127,17 @@ describe("filterByNutrition", () => {
 
   it("drops products with no nutrition when filtering", () => {
     const out = filterByNutrition(items, { where: { protein: { min: 0 } } });
-    expect(out.map(p => p.sku)).not.toContain("d");
+    expect(out.map((p) => p.sku)).not.toContain("d");
   });
 
   it("applies min/max ranges", () => {
     const out = filterByNutrition(items, { where: { protein: { min: 20 }, sugars: { max: 2 } } });
-    expect(out.map(p => p.sku).sort()).toEqual(["a", "c"]);
+    expect(out.map((p) => p.sku).sort()).toEqual(["a", "c"]);
   });
 
   it("sorts descending, missing last", () => {
     const out = filterByNutrition(items, { sort: { by: "protein", dir: "desc" } });
-    expect(out.map(p => p.sku)).toEqual(["c", "a", "b"]); // d dropped (sort references nutrition)
+    expect(out.map((p) => p.sku)).toEqual(["c", "a", "b"]); // d dropped (sort references nutrition)
   });
 
   it("returns [] without throwing when no product has nutrition", () => {

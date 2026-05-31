@@ -6,8 +6,9 @@
  *
  *   npx tsx examples/shop-flow.ts
  */
-import { Basketeer, FileTokenStore } from "../src/index.js";
+
 import { BrowserAuthBackend } from "../src/auth/browser/playwright.js";
+import { Basketeer, FileTokenStore } from "../src/index.js";
 
 async function main() {
   const t = await Basketeer.resume({
@@ -27,7 +28,9 @@ async function main() {
   }
 
   const basket = await t.basket.get();
-  console.log(`\nBasket ${basket.id ?? "(empty)"} — guide £${basket.guidePrice ?? 0}, ${basket.items.length} lines`);
+  console.log(
+    `\nBasket ${basket.id ?? "(empty)"} — guide £${basket.guidePrice ?? 0}, ${basket.items.length} lines`,
+  );
 
   // Show available delivery slots (default window: today..+6 days).
   const slots = await t.slots.list();
@@ -41,9 +44,13 @@ async function main() {
   // Boundary: checkout() returns the basket + the URL where payment is completed.
   const { url } = await t.checkout();
   console.log(`\n💳 Checkout URL: ${url}`);
-  console.log("   The SDK stops here by design — a human completes payment (3-D Secure) in a browser.");
+  console.log(
+    "   The SDK stops here by design — a human completes payment (3-D Secure) in a browser.",
+  );
 
-  console.log("\n✅ Shop flow ready: basket filled, slots listed, payment handed off to the human.");
+  console.log(
+    "\n✅ Shop flow ready: basket filled, slots listed, payment handed off to the human.",
+  );
 }
 
 main().catch((e) => {

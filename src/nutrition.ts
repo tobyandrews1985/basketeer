@@ -1,12 +1,26 @@
 // src/nutrition.ts — pure nutrition normalization + filtering. No I/O.
 import type {
-  Macros, Micronutrient, Nutrition, NutritionBasis,
-  Product, NutritionFilter, NutritionSort, MacroFilterKey, Range,
+  MacroFilterKey,
+  Macros,
+  Micronutrient,
+  Nutrition,
+  NutritionBasis,
+  NutritionFilter,
+  NutritionSort,
+  Product,
+  Range,
 } from "./models.js";
 
 const emptyMacros = (): Macros => ({
-  energyKcal: null, energyKj: null, protein: null, fat: null,
-  saturates: null, carbs: null, sugars: null, fibre: null, salt: null,
+  energyKcal: null,
+  energyKj: null,
+  protein: null,
+  fat: null,
+  saturates: null,
+  carbs: null,
+  sugars: null,
+  fibre: null,
+  salt: null,
 });
 
 /** Normalize a decimal comma between digits ("1,5" -> "1.5") so European values parse. */
@@ -40,17 +54,17 @@ function basisFromHeader(v: string): NutritionBasis {
 }
 
 const MACRO_LABELS: Record<string, keyof Macros> = {
-  "fat": "fat",
-  "saturates": "saturates",
+  fat: "fat",
+  saturates: "saturates",
   "of which saturates": "saturates",
-  "carbohydrate": "carbs",
+  carbohydrate: "carbs",
   "available carbohydrate": "carbs",
   "total carbohydrate": "carbs",
-  "sugars": "sugars",
+  sugars: "sugars",
   "of which sugars": "sugars",
-  "fibre": "fibre",
-  "protein": "protein",
-  "salt": "salt",
+  fibre: "fibre",
+  protein: "protein",
+  salt: "salt",
   "salt equivalent": "salt",
 };
 
@@ -125,8 +139,16 @@ export function parseNutrition(rows: unknown[]): Nutrition | null {
   return { basis, macros, micros, raw: rows };
 }
 
-const MACRO_FILTER_KEYS: MacroFilterKey[] =
-  ["energyKcal", "protein", "fat", "saturates", "carbs", "sugars", "fibre", "salt"];
+const MACRO_FILTER_KEYS: MacroFilterKey[] = [
+  "energyKcal",
+  "protein",
+  "fat",
+  "saturates",
+  "carbs",
+  "sugars",
+  "fibre",
+  "salt",
+];
 
 function inRange(v: number | null, r: Range | undefined): boolean {
   if (!r) return true;
@@ -138,7 +160,8 @@ function inRange(v: number | null, r: Range | undefined): boolean {
 
 function sortValue(p: Product, by: string): number | null {
   const n = p.nutrition;
-  if (MACRO_FILTER_KEYS.includes(by as MacroFilterKey)) return n?.macros?.[by as MacroFilterKey] ?? null;
+  if (MACRO_FILTER_KEYS.includes(by as MacroFilterKey))
+    return n?.macros?.[by as MacroFilterKey] ?? null;
   const micro = n?.micros.find((x) => x.name.toLowerCase() === by.toLowerCase());
   return micro?.amount ?? null;
 }
@@ -164,7 +187,9 @@ export function filterByNutrition(
         if (where[k] && !inRange(m[k], where[k])) return false;
       }
       for (const mc of where.micro ?? []) {
-        const found = p.nutrition!.micros.find((x) => x.name.toLowerCase() === mc.name.toLowerCase());
+        const found = p.nutrition!.micros.find(
+          (x) => x.name.toLowerCase() === mc.name.toLowerCase(),
+        );
         if (!inRange(found?.amount ?? null, { min: mc.min, max: mc.max })) return false;
       }
       return true;

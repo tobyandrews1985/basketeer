@@ -11,9 +11,9 @@
 
 import { fileURLToPath } from "node:url";
 import { Command, InvalidArgumentError } from "commander";
-import { Basketeer, FileTokenStore, BasketeerError } from "./index.js";
-import type { NutritionFilter } from "./index.js";
 import { BrowserAuthBackend } from "./auth/browser/playwright.js";
+import type { NutritionFilter } from "./index.js";
+import { Basketeer, BasketeerError, FileTokenStore } from "./index.js";
 
 /** Pretty-print any JSON-serialisable value to stdout. */
 function emit(value: unknown): void {
@@ -23,7 +23,8 @@ function emit(value: unknown): void {
 /** commander parser: a non-negative integer, else a usage error. */
 export function nonNegativeInt(value: string): number {
   const n = Number(value);
-  if (!Number.isInteger(n) || n < 0) throw new InvalidArgumentError("must be a non-negative integer");
+  if (!Number.isInteger(n) || n < 0)
+    throw new InvalidArgumentError("must be a non-negative integer");
   return n;
 }
 
@@ -60,7 +61,11 @@ program
   .action(async () => {
     const client = new Basketeer({ store, authBackend: new BrowserAuthBackend() });
     const session = await client.login();
-    emit({ ok: true, customerUuid: session.customerUuid, expiresAt: session.accessTokenExpiry ?? null });
+    emit({
+      ok: true,
+      customerUuid: session.customerUuid,
+      expiresAt: session.accessTokenExpiry ?? null,
+    });
   });
 
 // --- reads (anonymous) ------------------------------------------------------
@@ -70,23 +75,44 @@ program
   .description("Search the catalogue.")
   .argument("<query>", "search terms")
   .option("--limit <n>", "max results", nonNegativeInt, 10)
-  .option("--min-protein <g>", "only products with at least this protein per 100g/ml", nonNegativeNumber)
+  .option(
+    "--min-protein <g>",
+    "only products with at least this protein per 100g/ml",
+    nonNegativeNumber,
+  )
   .option("--max-sugar <g>", "only products with at most this sugar per 100g/ml", nonNegativeNumber)
   .option("--sort <field>", "sort hydrated results by a macro (e.g. protein)")
   .option("--hydrate <n>", "max results to fetch nutrition for (default 20)", nonNegativeInt)
-  .action(async (query: string, opts: { limit: number; minProtein?: number; maxSugar?: number; sort?: string; hydrate?: number }) => {
-    const usesNutrition =
-      opts.minProtein != null || opts.maxSugar != null || opts.sort != null;
-    if (usesNutrition) {
-      const where: NutritionFilter = {};
-      if (opts.minProtein != null) where.protein = { min: opts.minProtein };
-      if (opts.maxSugar != null) where.sugars = { max: opts.maxSugar };
-      const sort = opts.sort ? { by: opts.sort, dir: "desc" as const } : undefined;
-      emit(await readClient().searchByNutrition(query, { where, sort, hydrate: opts.hydrate, limit: opts.limit }));
-      return;
-    }
-    emit(await readClient().search(query, { limit: opts.limit }));
-  });
+  .action(
+    async (
+      query: string,
+      opts: {
+        limit: number;
+        minProtein?: number;
+        maxSugar?: number;
+        sort?: string;
+        hydrate?: number;
+      },
+    ) => {
+      const usesNutrition = opts.minProtein != null || opts.maxSugar != null || opts.sort != null;
+      if (usesNutrition) {
+        const where: NutritionFilter = {};
+        if (opts.minProtein != null) where.protein = { min: opts.minProtein };
+        if (opts.maxSugar != null) where.sugars = { max: opts.maxSugar };
+        const sort = opts.sort ? { by: opts.sort, dir: "desc" as const } : undefined;
+        emit(
+          await readClient().searchByNutrition(query, {
+            where,
+            sort,
+            hydrate: opts.hydrate,
+            limit: opts.limit,
+          }),
+        );
+        return;
+      }
+      emit(await readClient().search(query, { limit: opts.limit }));
+    },
+  );
 
 program
   .command("product")

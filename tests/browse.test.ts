@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { Basketeer } from "../src/client.js";
-import { stubFetch, SESSION } from "./helpers.js";
+import { SESSION, stubFetch } from "./helpers.js";
 
 /** Favourites returns bare ProductInterface nodes under favourites.products[]. */
 const FAVOURITES_BODY = [
@@ -85,7 +85,11 @@ describe("favourites", () => {
       brand: "TESCO",
       onOffer: false,
     });
-    expect(results[0]!.price).toMatchObject({ actual: 1.45, unitPrice: 0.64, unitOfMeasure: "litre" });
+    expect(results[0]!.price).toMatchObject({
+      actual: 1.45,
+      unitPrice: 0.64,
+      unitOfMeasure: "litre",
+    });
   });
 });
 
@@ -101,7 +105,15 @@ describe("browseCategory", () => {
     expect(op.variables).toMatchObject({ facet: "b;RnJlc2ggRm9vZA==", count: 24, page: 1 });
 
     expect(results).toHaveLength(1);
-    expect(results[0]).toMatchObject({ sku: "222", tpnb: "22", title: "Tesco Bananas Loose", onOffer: true });
-    expect(results[0]!.promotions[0]).toMatchObject({ priceAfterDiscount: 0.15, priceBeforeDiscount: 0.17 });
+    expect(results[0]).toMatchObject({
+      sku: "222",
+      tpnb: "22",
+      title: "Tesco Bananas Loose",
+      onOffer: true,
+    });
+    expect(results[0]!.promotions[0]).toMatchObject({
+      priceAfterDiscount: 0.15,
+      priceBeforeDiscount: 0.17,
+    });
   });
 });

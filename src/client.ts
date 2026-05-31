@@ -1,43 +1,6 @@
-import { GraphQLTransport } from "./graphql.js";
-import { SessionManager } from "./session-manager.js";
-import {
-  GET_PRODUCT,
-  SEARCH,
-  GET_CATEGORY_PRODUCTS,
-  GET_FAVOURITES,
-  GET_BASKET,
-  UPDATE_BASKET,
-  DELIVERY_SLOTS,
-  COLLECTION_SLOTS,
-  FULFILMENT,
-  GET_UPCOMING_ORDERS,
-  GET_LAST_FULFILLED_ORDER,
-  AMEND_ORDER,
-  CANCEL_ORDER,
-  CANCEL_AMEND,
-} from "./queries.js";
-import {
-  MFE,
-  FULFILMENT_TYPE,
-  CHECKOUT_URL,
-  PENDING_ORDER_CONTEXTS,
-  type FulfilmentType,
-  type OrderContext,
-} from "./operations.js";
-import {
-  type Raw,
-  parseProduct,
-  parseProductNode,
-  parseBasket,
-  parseSlot,
-  parseBookedSlot,
-  parseOrder,
-  isoDate,
-} from "./parsers.js";
-import { filterByNutrition } from "./nutrition.js";
-import { LineRejectedError, NotFoundError, BasketeerError } from "./errors.js";
 import type { AuthBackend, Credentials } from "./auth/types.js";
-import type { TokenStore } from "./store/types.js";
+import { BasketeerError, LineRejectedError, NotFoundError } from "./errors.js";
+import { GraphQLTransport } from "./graphql.js";
 import type {
   Basket,
   BookedSlot,
@@ -50,6 +13,43 @@ import type {
   Session,
   Slot,
 } from "./models.js";
+import { filterByNutrition } from "./nutrition.js";
+import {
+  CHECKOUT_URL,
+  FULFILMENT_TYPE,
+  type FulfilmentType,
+  MFE,
+  type OrderContext,
+  PENDING_ORDER_CONTEXTS,
+} from "./operations.js";
+import {
+  isoDate,
+  parseBasket,
+  parseBookedSlot,
+  parseOrder,
+  parseProduct,
+  parseProductNode,
+  parseSlot,
+  type Raw,
+} from "./parsers.js";
+import {
+  AMEND_ORDER,
+  CANCEL_AMEND,
+  CANCEL_ORDER,
+  COLLECTION_SLOTS,
+  DELIVERY_SLOTS,
+  FULFILMENT,
+  GET_BASKET,
+  GET_CATEGORY_PRODUCTS,
+  GET_FAVOURITES,
+  GET_LAST_FULFILLED_ORDER,
+  GET_PRODUCT,
+  GET_UPCOMING_ORDERS,
+  SEARCH,
+  UPDATE_BASKET,
+} from "./queries.js";
+import { SessionManager } from "./session-manager.js";
+import type { TokenStore } from "./store/types.js";
 
 export interface BasketeerOptions {
   /** A ready-made session (e.g. harvested elsewhere). */
@@ -355,7 +355,12 @@ export class Basketeer {
   }
 
   private async orderAction(query: string, operationName: string, orderNo: string): Promise<void> {
-    await this.transport.execute({ operationName, query, variables: { orderNo }, mfeName: MFE.orders });
+    await this.transport.execute({
+      operationName,
+      query,
+      variables: { orderNo },
+      mfeName: MFE.orders,
+    });
   }
 
   // --- checkout (boundary: pure HTTP up to payment) -------------------------
@@ -387,7 +392,11 @@ export class Basketeer {
     release: (slotId: string): Promise<BookedSlot> => this.fulfilment(slotId, "UNBOOK"),
   };
 
-  private async listSlots(opts: { start?: string; end?: string; type?: FulfilmentType }): Promise<Slot[]> {
+  private async listSlots(opts: {
+    start?: string;
+    end?: string;
+    type?: FulfilmentType;
+  }): Promise<Slot[]> {
     const data = await this.transport.execute<{ delivery?: Raw[] }>({
       operationName: "DeliverySlots",
       query: DELIVERY_SLOTS,
@@ -401,9 +410,11 @@ export class Basketeer {
     return (data.delivery ?? []).map(parseSlot);
   }
 
-  private async listCollectionSlots(
-    opts: { start?: string; end?: string; locationUuid?: string },
-  ): Promise<Slot[]> {
+  private async listCollectionSlots(opts: {
+    start?: string;
+    end?: string;
+    locationUuid?: string;
+  }): Promise<Slot[]> {
     const data = await this.transport.execute<{ collection?: Raw[] }>({
       operationName: "CollectionSlots",
       query: COLLECTION_SLOTS,

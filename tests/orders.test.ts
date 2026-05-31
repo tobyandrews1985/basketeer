@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { Basketeer } from "../src/client.js";
-import { stubFetch, SESSION } from "./helpers.js";
+import { SESSION, stubFetch } from "./helpers.js";
 
 const UPCOMING_ORDERS_BODY = [
   {
@@ -16,10 +16,26 @@ const UPCOMING_ORDERS_BODY = [
             isInAmend: true,
             amendExpiryTime: "2026-06-01T23:45:00+01:00",
             shoppingMethod: "delivery",
-            slot: { id: "slot-1", start: "2026-06-02T10:00:00+01:00", end: "2026-06-02T11:00:00+01:00", charge: 4.5 },
-            address: { name: "Toby A", city: "London", addressLine1: "1 High St", postcode: "AB1 2CD" },
+            slot: {
+              id: "slot-1",
+              start: "2026-06-02T10:00:00+01:00",
+              end: "2026-06-02T11:00:00+01:00",
+              charge: 4.5,
+            },
+            address: {
+              name: "Toby A",
+              city: "London",
+              addressLine1: "1 High St",
+              postcode: "AB1 2CD",
+            },
             items: [
-              { id: "line-1", quantity: 2, unit: "pcs", weight: null, product: { id: "111", title: "Milk" } },
+              {
+                id: "line-1",
+                quantity: 2,
+                unit: "pcs",
+                weight: null,
+                product: { id: "111", title: "Milk" },
+              },
             ],
           },
         ],
@@ -34,8 +50,20 @@ const LAST_FULFILLED_BODY = [
       order: {
         orderNo: "999888777",
         items: [
-          { id: "l1", quantity: 1, unit: "pcs", weight: null, product: { id: "222", title: "Bananas" } },
-          { id: "l2", quantity: 3, unit: "pcs", weight: null, product: { id: "333", title: "Eggs" } },
+          {
+            id: "l1",
+            quantity: 1,
+            unit: "pcs",
+            weight: null,
+            product: { id: "222", title: "Bananas" },
+          },
+          {
+            id: "l2",
+            quantity: 3,
+            unit: "pcs",
+            weight: null,
+            product: { id: "333", title: "Eggs" },
+          },
         ],
       },
     },
@@ -64,7 +92,12 @@ describe("orders.list", () => {
       amendExpiry: "2026-06-01T23:45:00+01:00",
     });
     expect(orders[0]!.items).toHaveLength(1);
-    expect(orders[0]!.items[0]).toMatchObject({ id: "line-1", quantity: 2, productId: "111", title: "Milk" });
+    expect(orders[0]!.items[0]).toMatchObject({
+      id: "line-1",
+      quantity: 2,
+      productId: "111",
+      title: "Milk",
+    });
   });
 });
 
@@ -95,7 +128,12 @@ describe("orders.lastFulfilled", () => {
     expect(order).not.toBeNull();
     expect(order!.orderNo).toBe("999888777");
     expect(order!.items).toHaveLength(2);
-    expect(order!.items[1]).toMatchObject({ id: "l2", quantity: 3, productId: "333", title: "Eggs" });
+    expect(order!.items[1]).toMatchObject({
+      id: "l2",
+      quantity: 3,
+      productId: "333",
+      title: "Eggs",
+    });
   });
 
   it("returns null when no last-fulfilled order exists", async () => {

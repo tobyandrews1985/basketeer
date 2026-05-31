@@ -1,9 +1,9 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { Session } from "../../models.js";
-import type { AuthBackend, Credentials } from "../types.js";
 import { AuthExpiredError } from "../../errors.js";
+import type { Session } from "../../models.js";
 import { sessionFromCookies } from "../harvest.js";
+import type { AuthBackend, Credentials } from "../types.js";
 
 /**
  * Browser-minted auth backend (v1's confirmed path).
@@ -80,7 +80,11 @@ export class BrowserAuthBackend implements AuthBackend {
       viewport: { width: 1280, height: 800 },
       locale: "en-GB",
       timezoneId: "Europe/London",
-      args: ["--disable-blink-features=AutomationControlled", "--no-first-run", "--no-default-browser-check"],
+      args: [
+        "--disable-blink-features=AutomationControlled",
+        "--no-first-run",
+        "--no-default-browser-check",
+      ],
       ignoreDefaultArgs: ["--enable-automation"],
     });
     try {
@@ -128,7 +132,9 @@ export class BrowserAuthBackend implements AuthBackend {
         (await ctx.cookies()).find((c) => c.name === "OAuth.AccessToken")?.value;
 
       const before = await tokenNow();
-      await page.goto(REFRESH_URL, { waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => {});
+      await page
+        .goto(REFRESH_URL, { waitUntil: "domcontentloaded", timeout: 30_000 })
+        .catch(() => {});
 
       // Wait for the refresh to land: token rotates AND we leave the auth path.
       for (let i = 0; i < 20; i++) {

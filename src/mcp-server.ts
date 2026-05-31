@@ -22,10 +22,9 @@ import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-
-import { Basketeer, FileTokenStore, BasketeerError } from "./index.js";
-import type { NutritionFilter } from "./index.js";
 import { BrowserAuthBackend } from "./auth/browser/playwright.js";
+import type { NutritionFilter } from "./index.js";
+import { Basketeer, BasketeerError, FileTokenStore } from "./index.js";
 
 // One shared client for the process. Load any persisted session from disk, then
 // construct with BrowserAuthBackend so authed tools can refresh past the ~1h
@@ -63,7 +62,10 @@ const server = new McpServer({ name: "basketeer", version: "0.1.0" });
 server.tool(
   "basketeer_search",
   "Search the Tesco grocery catalogue. Returns matching products with SKU, title, price, and any offers.",
-  { query: z.string().describe("Search terms, e.g. 'semi skimmed milk'."), limit: z.number().int().positive().optional() },
+  {
+    query: z.string().describe("Search terms, e.g. 'semi skimmed milk'."),
+    limit: z.number().int().positive().optional(),
+  },
   { readOnlyHint: true },
   ({ query, limit }) => run(() => client.search(query, { limit })),
 );
@@ -101,8 +103,18 @@ server.tool(
     minProtein: z.number().optional().describe("Minimum protein (g per 100g/ml)."),
     maxSugar: z.number().optional().describe("Maximum sugars (g per 100g/ml)."),
     sortBy: z.string().optional().describe("Macro to sort by descending, e.g. 'protein'."),
-    hydrate: z.number().int().positive().optional().describe("Max candidates to fetch nutrition for (default 20)."),
-    limit: z.number().int().positive().optional().describe("Max results to return after filtering."),
+    hydrate: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe("Max candidates to fetch nutrition for (default 20)."),
+    limit: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe("Max results to return after filtering."),
   },
   { readOnlyHint: true },
   ({ query, minProtein, maxSugar, sortBy, hydrate, limit }) =>

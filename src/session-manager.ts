@@ -1,8 +1,8 @@
-import type { Session } from "./models.js";
 import type { AuthBackend } from "./auth/types.js";
-import type { TokenStore } from "./store/types.js";
 import type { AuthHeaders } from "./graphql.js";
 import { jwtExpiryMs } from "./jwt.js";
+import type { Session } from "./models.js";
+import type { TokenStore } from "./store/types.js";
 
 export interface SessionManagerOptions {
   session?: Session | null;

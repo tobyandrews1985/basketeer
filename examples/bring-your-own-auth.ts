@@ -10,8 +10,9 @@
  * (In your app: `import { ... } from "basketeer"`. This repo example imports
  *  from ../src so it runs without a published build.)
  */
-import { Basketeer, sessionFromCookies } from "../src/index.js";
+
 import type { AuthBackend, Credentials, Session, TokenStore } from "../src/index.js";
+import { Basketeer, sessionFromCookies } from "../src/index.js";
 
 // ─── 1) Inject a session you obtained however you like ──────────────────────
 // Got cookies from your own browser farm, a manual harvest, a teammate's
@@ -44,7 +45,10 @@ class MySecretStoreAuthBackend implements AuthBackend {
 // ─── 3) Your own TokenStore (where the session is persisted is YOUR call) ────
 // Two methods + clear. Back it with Redis, a DB, Convex, a file — anything.
 class KvTokenStore implements TokenStore {
-  constructor(private kv: Map<string, string>, private key = "tesco-session") {}
+  constructor(
+    private kv: Map<string, string>,
+    private key = "tesco-session",
+  ) {}
   async load(): Promise<Session | null> {
     const raw = this.kv.get(this.key);
     return raw ? (JSON.parse(raw) as Session) : null;

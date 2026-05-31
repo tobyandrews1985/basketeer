@@ -6,8 +6,13 @@
   "license": "MIT",
   "author": "Toby Andrews <toby.andrews1985@gmail.com>",
   "homepage": "https://github.com/tobyandrews1985/basketeer#readme",
-  "repository": { "type": "git", "url": "git+https://github.com/tobyandrews1985/basketeer.git" },
-  "bugs": { "url": "https://github.com/tobyandrews1985/basketeer/issues" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tobyandrews1985/basketeer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tobyandrews1985/basketeer/issues"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -24,15 +29,23 @@
     "basketeer": "./dist/cli.js",
     "basketeer-mcp": "./dist/mcp-server.js"
   },
-  "files": ["dist", "README.md", "LICENSE"],
-  "engines": { "node": ">=18" },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "prebuild": "npm run clean",
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.typecheck.json",
+    "lint": "biome check .",
+    "format": "biome format --write .",
     "cli": "tsx src/cli.ts",
     "mcp": "tsx src/mcp-server.ts",
     "example:lookup": "tsx examples/lookup.ts",
@@ -40,13 +53,23 @@
     "prepare": "npm run build",
     "prepublishOnly": "npm run build && npm test"
   },
-  "keywords": ["tesco", "groceries", "automation", "graphql", "client", "mcp", "cli", "ai-agent"],
+  "keywords": [
+    "tesco",
+    "groceries",
+    "automation",
+    "graphql",
+    "client",
+    "mcp",
+    "cli",
+    "ai-agent"
+  ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "commander": "^12.0.0",
     "zod": "^3.25.0 || ^4.0.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.16",
     "@types/node": "^22.10.0",
     "playwright": "^1.49.0",
     "tsx": "^4.19.0",
@@ -57,6 +80,8 @@
     "playwright": "^1.40.0"
   },
   "peerDependenciesMeta": {
-    "playwright": { "optional": true }
+    "playwright": {
+      "optional": true
+    }
   }
 }

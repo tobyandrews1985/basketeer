@@ -1,8 +1,13 @@
-import { describe, it, expect } from "vitest";
-import { Basketeer } from "../src/client.js";
-import { ApiKeyError, RateLimitedError, LineRejectedError, AuthExpiredError } from "../src/errors.js";
+import { describe, expect, it } from "vitest";
 import type { AuthBackend } from "../src/auth/types.js";
-import { stubFetch, SESSION, makeNutritionClient, makeNutritionClientWith } from "./helpers.js";
+import { Basketeer } from "../src/client.js";
+import {
+  ApiKeyError,
+  AuthExpiredError,
+  LineRejectedError,
+  RateLimitedError,
+} from "../src/errors.js";
+import { makeNutritionClient, makeNutritionClientWith, SESSION, stubFetch } from "./helpers.js";
 
 const SEARCH_BODY = [
   {
@@ -159,7 +164,11 @@ describe("error taxonomy", () => {
 
   it("throws LineRejectedError when a basket line is unsuccessful", async () => {
     const body = [
-      { data: { basket: { id: "b1", items: [], updates: { items: [{ id: "999", successful: false }] } } } },
+      {
+        data: {
+          basket: { id: "b1", items: [], updates: { items: [{ id: "999", successful: false }] } },
+        },
+      },
     ];
     const { impl } = stubFetch([{ body }]);
     const t = new Basketeer({ session: SESSION, throttleMs: 0, fetchImpl: impl });
@@ -169,7 +178,9 @@ describe("error taxonomy", () => {
 
 describe("401 refresh-and-retry", () => {
   it("refreshes once on 401 then retries successfully", async () => {
-    const unauthorized = [{ errors: [{ message: "unauthorized", extensions: { http: { status: 401 } } }] }];
+    const unauthorized = [
+      { errors: [{ message: "unauthorized", extensions: { http: { status: 401 } } }] },
+    ];
     const ok = [{ data: { basket: { id: "b1", items: [] } } }];
     const { impl, calls } = stubFetch([{ body: unauthorized }, { body: ok }]);
 
@@ -181,7 +192,12 @@ describe("401 refresh-and-retry", () => {
         return { ...SESSION, accessToken: "new.token.sig" };
       },
     };
-    const t = new Basketeer({ session: SESSION, authBackend: backend, throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({
+      session: SESSION,
+      authBackend: backend,
+      throttleMs: 0,
+      fetchImpl: impl,
+    });
     const basket = await t.basket.get();
     expect(refreshed).toBe(1);
     expect(calls.length).toBe(2);
@@ -191,7 +207,9 @@ describe("401 refresh-and-retry", () => {
   });
 
   it("throws AuthExpiredError when refresh is impossible (no backend)", async () => {
-    const unauthorized = [{ errors: [{ message: "unauthorized", extensions: { http: { status: 401 } } }] }];
+    const unauthorized = [
+      { errors: [{ message: "unauthorized", extensions: { http: { status: 401 } } }] },
+    ];
     const { impl } = stubFetch([{ body: unauthorized }]);
     const t = new Basketeer({ session: SESSION, throttleMs: 0, fetchImpl: impl });
     await expect(t.basket.get()).rejects.toBeInstanceOf(AuthExpiredError);
@@ -228,10 +246,14 @@ describe("searchByNutrition", () => {
 
   it("respects the hydrate cap and reports hasMore", async () => {
     // 6 search hits, hydrate only 3 → 3 hydrated, catalogue had more.
-    const client = makeNutritionClientWith(
-      ["a", "b", "c", "d", "e", "f"],
-      { a: 25, b: 10, c: 30, d: 5, e: 15, f: 20 },
-    );
+    const client = makeNutritionClientWith(["a", "b", "c", "d", "e", "f"], {
+      a: 25,
+      b: 10,
+      c: 30,
+      d: 5,
+      e: 15,
+      f: 20,
+    });
 
     const out = await client.searchByNutrition("protein", { hydrate: 3 });
 

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { RateLimitedError, GraphQLRequestError, AuthExpiredError, ApiKeyError } from "./errors.js";
+import { ApiKeyError, AuthExpiredError, GraphQLRequestError, RateLimitedError } from "./errors.js";
 import { ENDPOINT, PUBLIC_API_KEY } from "./operations.js";
 
 const DEFAULT_UA =
@@ -37,7 +37,11 @@ export interface TransportOptions {
 
 function isUnauthorized(errors: readonly unknown[]): boolean {
   for (const e of errors) {
-    const err = e as { extensions?: { http?: { status?: number } }; message?: string; status?: unknown };
+    const err = e as {
+      extensions?: { http?: { status?: number } };
+      message?: string;
+      status?: unknown;
+    };
     // Synthetic 401 envelope injected by post() for raw HTTP 401 responses.
     if (err.status === 401) return true;
     if (typeof err.message === "string" && /unauthor|401/i.test(err.message)) return true;

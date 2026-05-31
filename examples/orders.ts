@@ -6,8 +6,9 @@
  *
  *   npx tsx examples/orders.ts
  */
-import { Basketeer, FileTokenStore } from "../src/index.js";
+
 import { BrowserAuthBackend } from "../src/auth/browser/playwright.js";
+import { Basketeer, FileTokenStore } from "../src/index.js";
 
 async function main() {
   const t = await Basketeer.resume({
@@ -20,14 +21,22 @@ async function main() {
   console.log(`Upcoming orders: ${upcoming.length}`);
   for (const o of upcoming) {
     const when = o.slot?.start ?? "?";
-    const amend = o.isInAmend ? "in-amend" : o.amendExpiry ? `amend until ${o.amendExpiry}` : "locked";
-    console.log(`  #${o.orderNo}  ${o.status}  ${o.totalItems ?? "?"} items  £${o.totalPrice ?? "?"}  slot ${when}  (${amend})`);
+    const amend = o.isInAmend
+      ? "in-amend"
+      : o.amendExpiry
+        ? `amend until ${o.amendExpiry}`
+        : "locked";
+    console.log(
+      `  #${o.orderNo}  ${o.status}  ${o.totalItems ?? "?"} items  £${o.totalPrice ?? "?"}  slot ${when}  (${amend})`,
+    );
   }
 
   // Last delivered order — its items are reorderable.
   const last = await t.orders.lastFulfilled();
   if (last) {
-    console.log(`\nLast fulfilled order #${last.orderNo} — ${last.items.length} reorderable items:`);
+    console.log(
+      `\nLast fulfilled order #${last.orderNo} — ${last.items.length} reorderable items:`,
+    );
     for (const it of last.items) {
       console.log(`  ${it.productId ?? "?"}  x${it.quantity}${it.unit ?? ""}  ${it.title}`);
     }

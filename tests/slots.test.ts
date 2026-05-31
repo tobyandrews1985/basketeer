@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { Basketeer } from "../src/client.js";
-import { stubFetch, SESSION } from "./helpers.js";
+import { SESSION, stubFetch } from "./helpers.js";
 
 const DELIVERY_SLOTS_BODY = [
   {
@@ -80,7 +80,11 @@ describe("slots.list (delivery)", () => {
     const op = calls[0]!.body[0];
     expect(op.operationName).toBe("DeliverySlots");
     expect(op.extensions.mfeName).toBe("mfe-slots");
-    expect(op.variables).toMatchObject({ start: "2026-06-01", end: "2026-06-01", type: "DELIVERY_VAN" });
+    expect(op.variables).toMatchObject({
+      start: "2026-06-01",
+      end: "2026-06-01",
+      type: "DELIVERY_VAN",
+    });
 
     expect(slots).toHaveLength(2);
     expect(slots[0]).toMatchObject({
@@ -116,7 +120,11 @@ describe("slots.listCollection", () => {
     const op = calls[0]!.body[0];
     expect(op.operationName).toBe("CollectionSlots");
     expect(op.extensions.mfeName).toBe("mfe-slots");
-    expect(op.variables).toMatchObject({ start: "2026-06-02", end: "2026-06-02", locationUuid: "store-abc" });
+    expect(op.variables).toMatchObject({
+      start: "2026-06-02",
+      end: "2026-06-02",
+      locationUuid: "store-abc",
+    });
 
     expect(slots).toHaveLength(1);
     expect(slots[0]).toMatchObject({

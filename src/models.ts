@@ -182,17 +182,25 @@ export interface Nutrition {
   raw: unknown[];
 }
 
-export interface Range { min?: number; max?: number; }
+export interface Range {
+  min?: number;
+  max?: number;
+}
 
 /** Macro fields that can be filtered/sorted on. Excludes energyKj (use energyKcal). */
 export type MacroFilterKey =
-  | "energyKcal" | "protein" | "fat" | "saturates"
-  | "carbs" | "sugars" | "fibre" | "salt";
+  | "energyKcal"
+  | "protein"
+  | "fat"
+  | "saturates"
+  | "carbs"
+  | "sugars"
+  | "fibre"
+  | "salt";
 
-export type NutritionFilter =
-  Partial<Record<MacroFilterKey, Range>> & {
-    micro?: { name: string; min?: number; max?: number }[];
-  };
+export type NutritionFilter = Partial<Record<MacroFilterKey, Range>> & {
+  micro?: { name: string; min?: number; max?: number }[];
+};
 
 export interface NutritionSort {
   by: MacroFilterKey | (string & {}); // a MacroFilterKey or a micronutrient name

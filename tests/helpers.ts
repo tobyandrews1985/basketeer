@@ -77,8 +77,14 @@ function notFoundResponse(): StubResponse {
 function searchNode(sku: string) {
   return {
     node: {
-      __typename: "ProductType", tpnc: sku, tpnb: sku, title: `Product ${sku}`, brandName: "TestBrand",
-      sellers: { results: [{ price: { actual: 1.0, unitPrice: 1.0, unitOfMeasure: "kg" }, promotions: [] }] },
+      __typename: "ProductType",
+      tpnc: sku,
+      tpnb: sku,
+      title: `Product ${sku}`,
+      brandName: "TestBrand",
+      sellers: {
+        results: [{ price: { actual: 1.0, unitPrice: 1.0, unitOfMeasure: "kg" }, promotions: [] }],
+      },
     },
   };
 }
@@ -92,7 +98,10 @@ function searchResponseFor(skus: string[]): StubResponse {
  * from `details` keyed by SKU (a number → protein per_100g, the string "404" → NotFound).
  * Responses are queued in SKU order, so call `searchByNutrition` with a matching hydrate cap.
  */
-export function makeNutritionClientWith(skus: string[], details: Record<string, number | "404">): Basketeer {
+export function makeNutritionClientWith(
+  skus: string[],
+  details: Record<string, number | "404">,
+): Basketeer {
   const responses: StubResponse[] = [searchResponseFor(skus)];
   for (const sku of skus) {
     const d = details[sku];
@@ -116,9 +125,57 @@ export function makeNutritionClient(): Basketeer {
         data: {
           search: {
             results: [
-              { node: { __typename: "ProductType", tpnc: "a", tpnb: "a", title: "Product a", brandName: "TestBrand", sellers: { results: [{ price: { actual: 1.0, unitPrice: 1.0, unitOfMeasure: "kg" }, promotions: [] }] } } },
-              { node: { __typename: "ProductType", tpnc: "b", tpnb: "b", title: "Product b", brandName: "TestBrand", sellers: { results: [{ price: { actual: 1.0, unitPrice: 1.0, unitOfMeasure: "kg" }, promotions: [] }] } } },
-              { node: { __typename: "ProductType", tpnc: "c", tpnb: "c", title: "Product c", brandName: "TestBrand", sellers: { results: [{ price: { actual: 1.0, unitPrice: 1.0, unitOfMeasure: "kg" }, promotions: [] }] } } },
+              {
+                node: {
+                  __typename: "ProductType",
+                  tpnc: "a",
+                  tpnb: "a",
+                  title: "Product a",
+                  brandName: "TestBrand",
+                  sellers: {
+                    results: [
+                      {
+                        price: { actual: 1.0, unitPrice: 1.0, unitOfMeasure: "kg" },
+                        promotions: [],
+                      },
+                    ],
+                  },
+                },
+              },
+              {
+                node: {
+                  __typename: "ProductType",
+                  tpnc: "b",
+                  tpnb: "b",
+                  title: "Product b",
+                  brandName: "TestBrand",
+                  sellers: {
+                    results: [
+                      {
+                        price: { actual: 1.0, unitPrice: 1.0, unitOfMeasure: "kg" },
+                        promotions: [],
+                      },
+                    ],
+                  },
+                },
+              },
+              {
+                node: {
+                  __typename: "ProductType",
+                  tpnc: "c",
+                  tpnb: "c",
+                  title: "Product c",
+                  brandName: "TestBrand",
+                  sellers: {
+                    results: [
+                      {
+                        price: { actual: 1.0, unitPrice: 1.0, unitOfMeasure: "kg" },
+                        promotions: [],
+                      },
+                    ],
+                  },
+                },
+              },
             ],
           },
         },

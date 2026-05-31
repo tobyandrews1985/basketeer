@@ -6,8 +6,9 @@
  *   npx playwright install chromium   # once, if 'chrome' channel is unavailable
  *   npm run auth:login
  */
-import { Basketeer, FileTokenStore } from "../src/index.js";
+
 import { BrowserAuthBackend } from "../src/auth/browser/playwright.js";
+import { Basketeer, FileTokenStore } from "../src/index.js";
 
 async function main() {
   const store = new FileTokenStore();
@@ -16,7 +17,9 @@ async function main() {
   console.log(`\n✅ Session harvested and saved.`);
   console.log(`   customer-uuid: ${session.customerUuid}`);
   console.log(`   cookies kept:  ${Object.keys(session.cookies).join(", ")}`);
-  console.log(`   token expiry:  ${session.accessTokenExpiry ? new Date(session.accessTokenExpiry).toISOString() : "unknown"}`);
+  console.log(
+    `   token expiry:  ${session.accessTokenExpiry ? new Date(session.accessTokenExpiry).toISOString() : "unknown"}`,
+  );
 }
 
 main().catch((e) => {

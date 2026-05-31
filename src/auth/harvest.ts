@@ -1,6 +1,6 @@
-import type { Session } from "../models.js";
 import { AuthExpiredError } from "../errors.js";
 import { jwtExpiryMs } from "../jwt.js";
+import type { Session } from "../models.js";
 
 /** Tesco-domain cookies worth replaying on authenticated calls (auth + Akamai). */
 const COOKIE_PREFIXES = ["OAuth.", "UUID", "bm_", "_abck"] as const;

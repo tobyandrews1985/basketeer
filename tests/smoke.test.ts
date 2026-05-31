@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 
 /**
  * The two published bins (cli, mcp-server) have side-effect-guarded bootstraps,

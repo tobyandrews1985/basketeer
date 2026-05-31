@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { nonNegativeInt, nonNegativeNumber } from "../src/cli.js";
 import { InvalidArgumentError } from "commander";
+import { describe, expect, it } from "vitest";
+import { nonNegativeInt, nonNegativeNumber } from "../src/cli.js";
 
 describe("cli numeric parsers", () => {
   it("nonNegativeInt accepts valid, rejects junk/negative", () => {

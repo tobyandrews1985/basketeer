@@ -27,14 +27,19 @@ export type Raw = Record<string, unknown>;
 const obj = (v: unknown): Raw => (v !== null && typeof v === "object" ? (v as Raw) : {});
 const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 /** Array of objects, with null/non-object elements dropped. */
-const objs = (v: unknown): Raw[] => arr(v).filter((x): x is Raw => x !== null && typeof x === "object");
+const objs = (v: unknown): Raw[] =>
+  arr(v).filter((x): x is Raw => x !== null && typeof x === "object");
 const str = (v: unknown): string | null => (typeof v === "string" ? v : null);
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
 const id = (v: unknown): string | null => (v == null ? null : String(v));
 
 function parsePrice(v: unknown): Price {
   const p = obj(v);
-  return { actual: num(p.actual), unitPrice: num(p.unitPrice), unitOfMeasure: str(p.unitOfMeasure) };
+  return {
+    actual: num(p.actual),
+    unitPrice: num(p.unitPrice),
+    unitOfMeasure: str(p.unitOfMeasure),
+  };
 }
 
 export function parsePromotions(v: unknown): Promotion[] {

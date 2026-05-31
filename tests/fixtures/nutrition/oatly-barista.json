@@ -16,5 +16,10 @@
   { "name": "Iodine", "value1": "22.5 µg (15%**)", "value2": null, "value3": null },
   { "name": "of which", "value1": "-", "value2": null, "value3": null },
   { "name": "*Natural sugars from oats", "value1": "-", "value2": null, "value3": null },
-  { "name": "**Of the Nutrient Reference Value (NRVs)", "value1": "-", "value2": null, "value3": null }
+  {
+    "name": "**Of the Nutrient Reference Value (NRVs)",
+    "value1": "-",
+    "value2": null,
+    "value3": null
+  }
 ]

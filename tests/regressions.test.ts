@@ -1,11 +1,11 @@
-import { describe, it, expect } from "vitest";
-import { Basketeer } from "../src/client.js";
-import { parsePromotions, parseProductNode, isoDate } from "../src/parsers.js";
-import { UPDATE_BASKET } from "../src/queries.js";
-import { categoryFacet } from "../src/operations.js";
-import { AuthExpiredError, GraphQLRequestError } from "../src/errors.js";
+import { describe, expect, it } from "vitest";
 import type { AuthBackend } from "../src/auth/types.js";
-import { stubFetch, SESSION } from "./helpers.js";
+import { Basketeer } from "../src/client.js";
+import { AuthExpiredError, GraphQLRequestError } from "../src/errors.js";
+import { categoryFacet } from "../src/operations.js";
+import { isoDate, parseProductNode, parsePromotions } from "../src/parsers.js";
+import { UPDATE_BASKET } from "../src/queries.js";
+import { SESSION, stubFetch } from "./helpers.js";
 
 describe("parsers are defensive", () => {
   it("parsePromotions tolerates null / non-object array elements", () => {
@@ -70,13 +70,20 @@ describe("transport hardening", () => {
   });
 
   it("throws AuthExpiredError (not GraphQLRequestError) when a refresh still 401s", async () => {
-    const unauthorized = [{ errors: [{ message: "unauthorized", extensions: { http: { status: 401 } } }] }];
+    const unauthorized = [
+      { errors: [{ message: "unauthorized", extensions: { http: { status: 401 } } }] },
+    ];
     const { impl } = stubFetch([{ body: unauthorized }]); // every attempt is 401
     const backend: AuthBackend = {
       login: async () => SESSION,
       refresh: async () => SESSION, // refresh "succeeds" but token still rejected
     };
-    const t = new Basketeer({ session: SESSION, authBackend: backend, throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({
+      session: SESSION,
+      authBackend: backend,
+      throttleMs: 0,
+      fetchImpl: impl,
+    });
     await expect(t.basket.get()).rejects.toBeInstanceOf(AuthExpiredError);
   });
 
@@ -156,7 +163,12 @@ describe("raw HTTP 401 triggers refresh", () => {
         return SESSION;
       },
     };
-    const t = new Basketeer({ session: SESSION, authBackend: backend, throttleMs: 0, fetchImpl: impl });
+    const t = new Basketeer({
+      session: SESSION,
+      authBackend: backend,
+      throttleMs: 0,
+      fetchImpl: impl,
+    });
 
     await t.getProduct("123");
     expect(refreshed).toBe(1);

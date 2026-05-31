@@ -18,9 +18,13 @@ async function main() {
   console.log(`\nGetProduct('${first.sku}'):`);
   const p = await t.getProduct(first.sku);
   console.log(`  ${p.title}`);
-  console.log(`  brand=${p.brand}  £${p.price.actual} (${p.price.unitPrice}/${p.price.unitOfMeasure})`);
+  console.log(
+    `  brand=${p.brand}  £${p.price.actual} (${p.price.unitPrice}/${p.price.unitOfMeasure})`,
+  );
   console.log(`  packSize=${p.packSize ? `${p.packSize.value}${p.packSize.units}` : "n/a"}`);
-  console.log(`  promotions=${p.promotions.length}  nutritionRows=${p.nutrition.length}`);
+  console.log(
+    `  promotions=${p.promotions.length}  nutritionMicros=${p.nutrition?.micros.length ?? 0}`,
+  );
 
   console.log("\n✅ Real Basketeer — pure-HTTP anonymous reads working.");
 }
