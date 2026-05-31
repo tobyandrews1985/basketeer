@@ -58,5 +58,5 @@ export type FulfilmentType = (typeof FULFILMENT_TYPE)[keyof typeof FULFILMENT_TY
  * Tesco category-page URL (`?...&facet=…`).
  */
 export function categoryFacet(department: string): string {
-  return "b;" + btoa(department);
+  return `b;${btoa(department)}`;
 }

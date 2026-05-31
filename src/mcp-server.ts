@@ -193,7 +193,7 @@ export function buildServer(client: Basketeer): McpServer {
     { readOnlyHint: false, destructiveHint: true },
     ({ orderNo, confirm }) =>
       run(async () => {
-        const token = confirmToken("cancel:" + orderNo);
+        const token = confirmToken(`cancel:${orderNo}`);
         if (confirm !== token) {
           return {
             requiresConfirmation: true,
@@ -224,21 +224,21 @@ export function buildServer(client: Basketeer): McpServer {
     "Prepare checkout: returns the current basket and the URL where a HUMAN completes payment in a browser. " +
       "This server never places or pays for an order — Tesco's 3-D Secure payment step is browser-bound by design. " +
       "Two-step: call once with no args to preview the basket and get a confirmToken; " +
-      "call again with confirm set to that token to book the slot and get the payment URL.",
+      "call again with confirm set to that token to get the payment URL for the human to complete.",
     { confirm: z.string().optional() },
     { readOnlyHint: false, destructiveHint: true },
     ({ confirm }) =>
       run(async () => {
         const basket = await client.basket.get();
         const signature = `${basket.items.length}:${basket.guidePrice ?? ""}`;
-        const token = confirmToken("checkout:" + signature);
+        const token = confirmToken(`checkout:${signature}`);
         if (confirm !== token) {
           return {
             requiresConfirmation: true,
             action: "checkout",
             basket,
             confirmToken: token,
-            hint: "Checkout books the slot and returns a payment URL. Call again with confirm set to this confirmToken to proceed.",
+            hint: "Checkout returns the current basket and a payment URL for a human to complete in a browser. Call again with confirm set to this confirmToken to proceed.",
           };
         }
         const { basket: cart, url } = await client.checkout();

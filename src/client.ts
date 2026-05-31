@@ -81,6 +81,15 @@ function reqInt(v: number | undefined, name: string, min: number): void {
   if (!Number.isInteger(v) || v < min) throw new RangeError(`${name} must be an integer >= ${min}`);
 }
 
+/**
+ * Guard for a basket-line quantity (the low-level `basket.update` escape hatch).
+ * Rejects negative, NaN, and Infinity; allows fractional values for weight-priced
+ * lines. `JSON.stringify(NaN)` → `null`, which Tesco would silently misread.
+ */
+function reqQty(v: number, name: string): void {
+  if (!Number.isFinite(v) || v < 0) throw new RangeError(`${name} must be a finite number >= 0`);
+}
+
 function normaliseItem(item: BasketItemInput): Record<string, unknown> {
   return {
     adjustment: item.adjustment ?? false,
@@ -227,6 +236,8 @@ export class Basketeer {
     facet: string,
     opts: { limit?: number; page?: number } = {},
   ): Promise<SearchPage> {
+    reqInt(opts.limit, "limit", 1);
+    reqInt(opts.page, "page", 1);
     const data = await this.transport.execute<{ category?: { results?: Raw[] } }>({
       operationName: "GetCategoryProducts",
       query: GET_CATEGORY_PRODUCTS,
@@ -239,6 +250,7 @@ export class Basketeer {
   /** The customer's favourites ("my usuals"). */
   async favourites(opts: { limit?: number; page?: number } = {}): Promise<SearchPage> {
     reqInt(opts.limit, "limit", 1);
+    reqInt(opts.page, "page", 1);
     const data = await this.transport.execute<{ favourites?: { products?: Raw[] } }>({
       operationName: "GetFavourites",
       query: GET_FAVOURITES,
@@ -301,6 +313,7 @@ export class Basketeer {
   }
 
   private async updateBasket(items: BasketItemInput[], orderId?: string): Promise<Basket> {
+    for (const item of items) reqQty(item.newValue, "quantity");
     const variables: Record<string, unknown> = { items: items.map(normaliseItem) };
     if (orderId !== undefined) variables.orderId = orderId;
     const data = await this.transport.execute<{ basket?: Raw }>({
@@ -309,7 +322,7 @@ export class Basketeer {
       variables,
       mfeName: MFE.basket,
     });
-    const updates = (((data.basket ?? {}).updates as Raw | undefined)?.items as Raw[]) ?? [];
+    const updates = ((data.basket?.updates as Raw | undefined)?.items as Raw[]) ?? [];
     const rejected = updates.filter((u) => u.successful === false).map((u) => String(u.id));
     if (rejected.length) throw new LineRejectedError(rejected.join(", "));
     return parseBasket(data.basket);

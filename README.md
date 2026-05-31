@@ -11,7 +11,7 @@ One typed core, with a CLI and an MCP server on top, so your code, your terminal
 <img src="docs/media/demo.gif" alt="basketeer searching Tesco from the CLI — live results, no browser" width="760">
 
 [![npm](https://img.shields.io/npm/v/basketeer.svg)](https://www.npmjs.com/package/basketeer)
-[![tests](https://img.shields.io/badge/tests-65%20passing-brightgreen.svg)](tests/)
+[![tests](https://img.shields.io/badge/tests-71%20passing-brightgreen.svg)](tests/)
 [![CI](https://github.com/tobyandrews1985/basketeer/actions/workflows/ci.yml/badge.svg)](https://github.com/tobyandrews1985/basketeer/actions/workflows/ci.yml)
 [![runtime deps](https://img.shields.io/badge/runtime%20deps-3-blue.svg)](package.json)
 [![license: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
@@ -31,7 +31,7 @@ Tesco has no public API. The tools that exist scrape the DOM and shatter on the 
 - **Typed.** A clean, fully-typed client you import. The CLI and MCP server are built on it.
 - **Portable.** Runs on Node, Bun, and Deno. Just 3 runtime deps; the browser is an optional peer.
 - **Safe.** `checkout()` stops at the payment URL. A human finishes 3-D Secure in a browser, by design.
-- **Tested.** 65 tests across the data plane and its parsers.
+- **Tested.** 71 tests across the data plane and its parsers.
 
 ## Quick start
 
@@ -133,7 +133,7 @@ Tesco's website talks to a GraphQL gateway at `xapi.tesco.com`. basketeer speaks
 
 - **The data plane is pure HTTP.** Search, product, basket, slots, and orders are GraphQL operations over plain `fetch`. Stateless, no browser, throttled to a polite 1 req/s, with a hard stop on `429`/`403` (no retry-storms). Reads need only the public `x-apikey`.
 - **A browser is needed only for auth.** Sign-in is guarded by Akamai (TLS fingerprinting plus a JS challenge) that only a genuine browser satisfies. `BrowserAuthBackend` drives a real Chrome to sign you in once and harvests the session (an `OAuth.AccessToken` bearer plus cookies). The access token lasts ~1 hour and refreshes via the same browser path; the underlying session lasts ~30 days.
-- **Payment is deliberately out of scope.** Paying for an order goes through a separate, CSRF-protected checkout app and 3-D Secure card authentication. That is browser-bound and fraud-sensitive by nature. `checkout()` fills the basket, books the slot, and returns the URL where **you** finish payment. basketeer never pays.
+- **Payment is deliberately out of scope.** Paying for an order goes through a separate, CSRF-protected checkout app and 3-D Secure card authentication. That is browser-bound and fraud-sensitive by nature. `checkout()` returns the current basket and the URL where **you** finish payment — you fill the basket and book a slot with the earlier calls; `checkout()` itself only hands off. basketeer never pays.
 
 ## Auth — you choose where the browser runs
 
@@ -216,7 +216,7 @@ Personal-account interoperability automation: your account, your data. The clien
 
 ```bash
 npm install
-npm test          # 65 tests: vitest unit + regression + smoke
+npm test          # 71 tests: vitest unit + regression + smoke
 npm run build     # clean build to dist/
 npm run example:lookup
 ```

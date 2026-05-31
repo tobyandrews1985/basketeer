@@ -336,4 +336,40 @@ describe("numeric input validation", () => {
     const t = new Basketeer({ throttleMs: 0, fetchImpl: impl });
     await expect(t.search("milk", { limit: 5 })).resolves.toBeDefined();
   });
+
+  it("browseCategory rejects with RangeError for negative limit", async () => {
+    const t = new Basketeer({ throttleMs: 0 });
+    await expect(t.browseCategory("b;x", { limit: -1 })).rejects.toThrow(RangeError);
+  });
+
+  it("browseCategory rejects with RangeError for zero page", async () => {
+    const t = new Basketeer({ throttleMs: 0 });
+    await expect(t.browseCategory("b;x", { page: 0 })).rejects.toThrow(RangeError);
+  });
+
+  it("favourites rejects with RangeError for fractional page", async () => {
+    const t = new Basketeer({ session: SESSION, throttleMs: 0 });
+    await expect(t.favourites({ page: 1.5 })).rejects.toThrow(RangeError);
+  });
+
+  it("basket.update rejects with RangeError for negative quantity", async () => {
+    const t = new Basketeer({ session: SESSION, throttleMs: 0 });
+    await expect(t.basket.update([{ id: "sku", newValue: -1 }])).rejects.toThrow(RangeError);
+  });
+
+  it("basket.update rejects with RangeError for NaN quantity", async () => {
+    const t = new Basketeer({ session: SESSION, throttleMs: 0 });
+    await expect(t.basket.update([{ id: "sku", newValue: Number.NaN }])).rejects.toThrow(
+      RangeError,
+    );
+  });
+
+  it("basket.update accepts a fractional quantity (weight-priced line)", async () => {
+    const body = [{ data: { basket: { id: "b1", items: [], updates: { items: [] } } } }];
+    const { impl } = stubFetch([{ body }]);
+    const t = new Basketeer({ session: SESSION, throttleMs: 0, fetchImpl: impl });
+    await expect(
+      t.basket.update([{ id: "sku", newValue: 1.5, newUnitChoice: "kg" }]),
+    ).resolves.toBeDefined();
+  });
 });

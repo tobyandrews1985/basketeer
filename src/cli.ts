@@ -17,7 +17,7 @@ import { Basketeer, BasketeerError, FileTokenStore } from "./index.js";
 
 /** Pretty-print any JSON-serialisable value to stdout. */
 function emit(value: unknown): void {
-  process.stdout.write(JSON.stringify(value, null, 2) + "\n");
+  process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 }
 
 /** commander parser: a non-negative integer, else a usage error. */

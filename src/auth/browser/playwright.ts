@@ -92,7 +92,7 @@ export class BrowserAuthBackend implements AuthBackend {
       const page = ctx.pages()[0] ?? (await ctx.newPage());
       await page.goto(LOGIN_URL);
 
-      console.log("\n" + "=".repeat(70));
+      console.log(`\n${"=".repeat(70)}`);
       console.log("TESCO LOGIN — a real Chrome window has opened.");
       console.log("  1. Sign in normally (username, password, 2FA if asked).");
       console.log("  2. Wait until you can see your account / the groceries homepage.");

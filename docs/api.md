@@ -45,7 +45,7 @@ client.searchByNutrition(query: string, opts?: {
 }) => Promise<{ results: Product[]; hydrated: number; failed: number; hasMore: boolean }>
 ```
 
-Runs a keyword search, fetches nutrition for the top `hydrate` results (one throttled product call each), then applies `filterByNutrition` locally. `hydrated` is the number of products successfully fetched; `failed` is how many candidates whose detail fetch errored (e.g. a discontinued/regional SKU that 404s) and were skipped — a single failure never rejects the call; `hasMore` is true when the catalogue had more keyword matches than were hydrated.
+Runs a keyword search, fetches nutrition for the top `hydrate` results (one throttled product call each), then applies `filterByNutrition` locally. `hydrated` is the number of products successfully fetched; `failed` is how many candidates whose detail fetch returned **not-found** (e.g. a discontinued/regional SKU that 404s) and were soft-skipped. A genuine error — rate-limit, bad key, expired auth, or transport — still propagates and rejects the whole call, rather than being silently counted as a `failed`. `hasMore` is true when the catalogue had more keyword matches than were hydrated.
 
 > This filters *within* a search result — it does not scan the whole catalogue. Cost is bounded by `hydrate` (default 20).
 
