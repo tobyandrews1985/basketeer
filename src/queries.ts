@@ -6,7 +6,7 @@
 export const GET_PRODUCT = `
 query GetProduct($tpnc: String!) {
   product(tpnc: $tpnc) {
-    tpnb tpnc title brandName
+    tpnb tpnc title brandName defaultImageUrl
     price { actual unitPrice unitOfMeasure }
     promotions {
       description
@@ -30,7 +30,7 @@ query Search($query: String!, $page: Int = 1, $count: Int) {
       node {
         __typename
         ... on ProductInterface {
-          tpnc tpnb title brandName
+          tpnc tpnb title brandName defaultImageUrl
           sellers {
             results {
               price { actual unitPrice unitOfMeasure }
@@ -56,7 +56,7 @@ query GetCategoryProducts($facet: ID, $page: Int = 1, $count: Int) {
       node {
         __typename
         ... on ProductInterface {
-          tpnc tpnb title brandName
+          tpnc tpnb title brandName defaultImageUrl
           sellers {
             results {
               price { actual unitPrice unitOfMeasure }
@@ -75,7 +75,7 @@ query GetFavourites($page: Int = 1, $count: Int, $sortBy: String) {
     products {
       __typename
       ... on ProductInterface {
-        tpnc tpnb title brandName
+        tpnc tpnb title brandName defaultImageUrl
         sellers {
           results {
             price { actual unitPrice unitOfMeasure }

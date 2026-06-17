@@ -16,6 +16,8 @@ export {
   NotFoundError,
   RateLimitedError,
 } from "./errors.js";
+export type { ImageSize } from "./images.js";
+export { resizeImageUrl } from "./images.js";
 // Models
 export type {
   Basket,

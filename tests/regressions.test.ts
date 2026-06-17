@@ -20,6 +20,7 @@ describe("parsers are defensive", () => {
     expect(parseProductNode({})).toBeNull();
     expect(parseProductNode({ __typename: "NotAProduct" })).toBeNull();
     expect(parseProductNode({ tpnc: "1", title: "T" })?.sku).toBe("1");
+    expect(parseProductNode({ tpnc: "1", defaultImageUrl: 123 })?.imageUrl).toBeNull();
   });
 
   it("search drops null edges and tpnc-less nodes instead of fabricating results", async () => {
@@ -138,6 +139,7 @@ describe("raw HTTP 401 triggers refresh", () => {
       tpnb: "123",
       title: "Test Product",
       brandName: "TestBrand",
+      defaultImageUrl: "https://digitalcontent.api.tesco.com/v2/media/ghs/test.jpeg?h=225&w=225",
       price: { actual: 1.0, unitPrice: 1.0, unitOfMeasure: "kg" },
       promotions: [],
       details: { packSize: null, nutrition: [], ingredients: [] },

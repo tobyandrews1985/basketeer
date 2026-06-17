@@ -14,6 +14,8 @@ const FAVOURITES_BODY = [
             tpnb: "11",
             title: "Tesco Semi Skimmed Milk",
             brandName: "TESCO",
+            defaultImageUrl:
+              "https://digitalcontent.api.tesco.com/v2/media/ghs/milk.jpeg?h=225&w=225",
             sellers: {
               results: [
                 {
@@ -42,6 +44,8 @@ const CATEGORY_BODY = [
               tpnb: "22",
               title: "Tesco Bananas Loose",
               brandName: "TESCO",
+              defaultImageUrl:
+                "https://digitalcontent.api.tesco.com/v2/media/ghs/bananas.jpeg?h=225&w=225",
               sellers: {
                 results: [
                   {
@@ -83,6 +87,7 @@ describe("favourites", () => {
       tpnb: "11",
       title: "Tesco Semi Skimmed Milk",
       brand: "TESCO",
+      imageUrl: "https://digitalcontent.api.tesco.com/v2/media/ghs/milk.jpeg?h=225&w=225",
       onOffer: false,
     });
     expect(results[0]!.price).toMatchObject({
@@ -109,6 +114,7 @@ describe("browseCategory", () => {
       sku: "222",
       tpnb: "22",
       title: "Tesco Bananas Loose",
+      imageUrl: "https://digitalcontent.api.tesco.com/v2/media/ghs/bananas.jpeg?h=225&w=225",
       onOffer: true,
     });
     expect(results[0]!.promotions[0]).toMatchObject({

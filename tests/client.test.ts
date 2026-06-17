@@ -21,6 +21,8 @@ const SEARCH_BODY = [
               tpnb: "54550994",
               title: "Tesco British Semi Skimmed Milk 2.272L, 4 Pints",
               brandName: "TESCO",
+              defaultImageUrl:
+                "https://digitalcontent.api.tesco.com/v2/media/ghs/milk.jpeg?h=225&w=225",
               sellers: {
                 results: [
                   {
@@ -53,6 +55,7 @@ const PRODUCT_PACKAGED = [
         tpnb: "111",
         title: "Coca-Cola 1.75L",
         brandName: "Coca-Cola",
+        defaultImageUrl: "https://digitalcontent.api.tesco.com/v2/media/ghs/coke.jpeg?h=225&w=225",
         price: { actual: 2.49, unitPrice: 1.42, unitOfMeasure: "litre" },
         promotions: [],
         details: { packSize: [{ value: "1750", units: "ML" }], nutrition: [], ingredients: [] },
@@ -69,6 +72,7 @@ const PRODUCT_LOOSE = [
         tpnb: "222",
         title: "Tesco Bananas Loose",
         brandName: "TESCO",
+        defaultImageUrl: null,
         price: { actual: 0.17, unitPrice: 1.1, unitOfMeasure: "kg" },
         promotions: [],
         details: { packSize: null, nutrition: [], ingredients: [] },
@@ -121,6 +125,9 @@ describe("parsing", () => {
     const { results } = await t.search("milk");
     const r = results[0];
     expect(r!.sku).toBe("254656543");
+    expect(r!.imageUrl).toBe(
+      "https://digitalcontent.api.tesco.com/v2/media/ghs/milk.jpeg?h=225&w=225",
+    );
     expect(r!.price.actual).toBe(1.65);
     expect(r!.onOffer).toBe(true);
     expect(r!.promotions[0]!.priceBeforeDiscount).toBeNull();
@@ -132,12 +139,16 @@ describe("parsing", () => {
     const t = new Basketeer({ throttleMs: 0, fetchImpl: impl });
     const p = await t.getProduct("282822189");
     expect(p.packSize).toEqual({ value: 1750, units: "ML" });
+    expect(p.imageUrl).toBe(
+      "https://digitalcontent.api.tesco.com/v2/media/ghs/coke.jpeg?h=225&w=225",
+    );
   });
 
   it("handles null packSize (loose produce) without throwing", async () => {
     const { impl } = stubFetch([{ body: PRODUCT_LOOSE }]);
     const t = new Basketeer({ throttleMs: 0, fetchImpl: impl });
     const p = await t.getProduct("275280804");
+    expect(p.imageUrl).toBeNull();
     expect(p.packSize).toBeNull();
     expect(p.price.actual).toBe(0.17);
   });
