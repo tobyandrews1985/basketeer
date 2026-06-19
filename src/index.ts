@@ -21,6 +21,7 @@ export type {
   Basket,
   BasketLine,
   BookedSlot,
+  CatchWeightOption,
   MacroFilterKey,
   Macros,
   Micronutrient,

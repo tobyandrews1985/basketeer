@@ -45,6 +45,38 @@ const SEARCH_BODY = [
   },
 ];
 
+const SEARCH_CATCH_WEIGHT_BODY = [
+  {
+    data: {
+      search: {
+        results: [
+          {
+            node: {
+              __typename: "ProductType",
+              tpnc: "276054144",
+              tpnb: "54550994",
+              title: "Tesco Finest Beef Steak",
+              brandName: "TESCO FINEST",
+              catchWeightList: [
+                { price: 4.25, weight: 0.25, default: true },
+                { price: 5.1, weight: 0.3, default: false },
+              ],
+              sellers: {
+                results: [
+                  {
+                    price: { actual: 4.25, unitPrice: 17, unitOfMeasure: "kg" },
+                    promotions: [],
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      },
+    },
+  },
+];
+
 const PRODUCT_PACKAGED = [
   {
     data: {
@@ -70,6 +102,12 @@ const PRODUCT_LOOSE = [
         title: "Tesco Bananas Loose",
         brandName: "TESCO",
         price: { actual: 0.17, unitPrice: 1.1, unitOfMeasure: "kg" },
+        catchWeightList: [
+          { price: 4.25, weight: 0.25, default: true },
+          { price: "bad", weight: 0.3, default: true },
+          { price: 5.1, weight: Number.NaN, default: true },
+          { price: 6.8, weight: 0.4, default: 1 },
+        ],
         promotions: [],
         details: { packSize: null, nutrition: [], ingredients: [] },
       },
@@ -92,6 +130,17 @@ describe("request assembly", () => {
     expect(Array.isArray(body)).toBe(true);
     expect(body[0].operationName).toBe("Search");
     expect(body[0].extensions.mfeName).toBe("mfe-plp");
+  });
+
+  it("selects catchWeightList on product and catalogue reads", async () => {
+    const { impl: productImpl, calls: productCalls } = stubFetch([{ body: PRODUCT_PACKAGED }]);
+    await new Basketeer({ throttleMs: 0, fetchImpl: productImpl }).getProduct("282822189");
+    expect(productCalls[0]!.body[0].query).toContain("catchWeightList { price weight default }");
+
+    const { impl: searchImpl, calls: searchCalls } = stubFetch([{ body: SEARCH_BODY }]);
+    await new Basketeer({ throttleMs: 0, fetchImpl: searchImpl }).search("milk");
+    expect(searchCalls[0]!.body[0].query).toContain("... on ProductInterface");
+    expect(searchCalls[0]!.body[0].query).toContain("catchWeightList { price weight default }");
   });
 
   it("omits auth headers when anonymous", async () => {
@@ -125,6 +174,17 @@ describe("parsing", () => {
     expect(r!.onOffer).toBe(true);
     expect(r!.promotions[0]!.priceBeforeDiscount).toBeNull();
     expect(r!.promotions[0]!.priceAfterDiscount).toBe(1.65);
+    expect(r!.catchWeightList).toBeUndefined();
+  });
+
+  it("parses catch-weight options on search results", async () => {
+    const { impl } = stubFetch([{ body: SEARCH_CATCH_WEIGHT_BODY }]);
+    const t = new Basketeer({ throttleMs: 0, fetchImpl: impl });
+    const { results } = await t.search("steak");
+    expect(results[0]!.catchWeightList).toEqual([
+      { price: 4.25, weight: 0.25, default: true },
+      { price: 5.1, weight: 0.3, default: false },
+    ]);
   });
 
   it("coerces packSize array (string value, uppercase units) to a number", async () => {
@@ -132,14 +192,19 @@ describe("parsing", () => {
     const t = new Basketeer({ throttleMs: 0, fetchImpl: impl });
     const p = await t.getProduct("282822189");
     expect(p.packSize).toEqual({ value: 1750, units: "ML" });
+    expect(p.catchWeightList).toBeUndefined();
   });
 
-  it("handles null packSize (loose produce) without throwing", async () => {
+  it("handles null packSize and parses valid catch-weight entries only", async () => {
     const { impl } = stubFetch([{ body: PRODUCT_LOOSE }]);
     const t = new Basketeer({ throttleMs: 0, fetchImpl: impl });
     const p = await t.getProduct("275280804");
     expect(p.packSize).toBeNull();
     expect(p.price.actual).toBe(0.17);
+    expect(p.catchWeightList).toEqual([
+      { price: 4.25, weight: 0.25, default: true },
+      { price: 6.8, weight: 0.4, default: true },
+    ]);
   });
 });
 

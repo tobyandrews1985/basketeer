@@ -21,6 +21,10 @@ The full surface. For the pitch, quick start, and how it works, see the [README]
 | Reorder | `orders.lastFulfilled()` → `Order \| null` | authed | Last delivered shop. |
 | Checkout | `checkout()` → `{ basket, url }` | authed | **Stops at the payment URL. Never pays.** |
 
+## Catalogue Models
+
+`Product` and `SearchResult` include `catchWeightList?: CatchWeightOption[]` when Tesco exposes catch-weight options for a product. Each option is `{ price: number; weight: number; default: boolean }`; the field is omitted for ordinary fixed-weight products or malformed Tesco data.
+
 ## Nutrition
 
 ### Types

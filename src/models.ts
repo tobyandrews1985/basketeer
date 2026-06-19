@@ -20,6 +20,12 @@ export interface PackSize {
   units: string;
 }
 
+export interface CatchWeightOption {
+  price: number;
+  weight: number;
+  default: boolean;
+}
+
 export interface Product {
   /** tpnc — the SKU used for product lookup and basket ops. */
   sku: string;
@@ -28,6 +34,7 @@ export interface Product {
   brand: string | null;
   price: Price;
   packSize: PackSize | null;
+  catchWeightList?: CatchWeightOption[];
   promotions: Promotion[];
   /** Normalized nutrition, or null if Tesco returned none / it was unparseable. */
   nutrition: Nutrition | null;
@@ -42,6 +49,7 @@ export interface SearchResult {
   title: string;
   brand: string | null;
   price: Price;
+  catchWeightList?: CatchWeightOption[];
   onOffer: boolean;
   promotions: Promotion[];
 }

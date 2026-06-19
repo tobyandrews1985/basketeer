@@ -14,6 +14,7 @@ const FAVOURITES_BODY = [
             tpnb: "11",
             title: "Tesco Semi Skimmed Milk",
             brandName: "TESCO",
+            catchWeightList: null,
             sellers: {
               results: [
                 {
@@ -42,6 +43,10 @@ const CATEGORY_BODY = [
               tpnb: "22",
               title: "Tesco Bananas Loose",
               brandName: "TESCO",
+              catchWeightList: [
+                { price: 4.25, weight: 0.25, default: true },
+                { price: 5.1, weight: 0.3, default: false },
+              ],
               sellers: {
                 results: [
                   {
@@ -76,6 +81,8 @@ describe("favourites", () => {
     expect(op.operationName).toBe("GetFavourites");
     expect(op.extensions.mfeName).toBe("mfe-favourites");
     expect(op.variables).toMatchObject({ count: 50, page: 1, sortBy: "TAXONOMY" });
+    expect(op.query).toContain("... on ProductInterface");
+    expect(op.query).toContain("catchWeightList { price weight default }");
 
     expect(results).toHaveLength(1);
     expect(results[0]).toMatchObject({
@@ -90,6 +97,7 @@ describe("favourites", () => {
       unitPrice: 0.64,
       unitOfMeasure: "litre",
     });
+    expect(results[0]!.catchWeightList).toBeUndefined();
   });
 });
 
@@ -103,6 +111,8 @@ describe("browseCategory", () => {
     expect(op.operationName).toBe("GetCategoryProducts");
     expect(op.extensions.mfeName).toBe("mfe-plp");
     expect(op.variables).toMatchObject({ facet: "b;RnJlc2ggRm9vZA==", count: 24, page: 1 });
+    expect(op.query).toContain("... on ProductInterface");
+    expect(op.query).toContain("catchWeightList { price weight default }");
 
     expect(results).toHaveLength(1);
     expect(results[0]).toMatchObject({
@@ -115,5 +125,9 @@ describe("browseCategory", () => {
       priceAfterDiscount: 0.15,
       priceBeforeDiscount: 0.17,
     });
+    expect(results[0]!.catchWeightList).toEqual([
+      { price: 4.25, weight: 0.25, default: true },
+      { price: 5.1, weight: 0.3, default: false },
+    ]);
   });
 });

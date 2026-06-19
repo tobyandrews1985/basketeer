@@ -10,6 +10,7 @@ import type {
   Basket,
   BasketLine,
   BookedSlot,
+  CatchWeightOption,
   Order,
   OrderItem,
   PackSize,
@@ -64,10 +65,23 @@ function parsePackSize(v: unknown): PackSize | null {
   return units && Number.isFinite(value) ? { value, units } : null;
 }
 
+function parseCatchWeightList(v: unknown): CatchWeightOption[] | undefined {
+  const options = objs(v)
+    .map((entry) => {
+      const price = num(entry.price);
+      const weight = num(entry.weight);
+      if (price === null || weight === null) return null;
+      return { price, weight, default: Boolean(entry.default) };
+    })
+    .filter((entry): entry is CatchWeightOption => entry !== null);
+  return options.length > 0 ? options : undefined;
+}
+
 export function parseProduct(v: unknown): Product {
   const node = obj(v);
   const details = obj(node.details);
   const nutrition = parseNutrition(arr(details.nutrition));
+  const catchWeightList = parseCatchWeightList(node.catchWeightList);
   return {
     sku: id(node.tpnc) ?? "",
     tpnb: id(node.tpnb),
@@ -75,6 +89,7 @@ export function parseProduct(v: unknown): Product {
     brand: str(node.brandName),
     price: parsePrice(node.price),
     packSize: parsePackSize(details.packSize),
+    ...(catchWeightList ? { catchWeightList } : {}),
     promotions: parsePromotions(node.promotions),
     nutrition,
     macros: nutrition?.macros ?? null,
@@ -92,12 +107,14 @@ export function parseProductNode(v: unknown): SearchResult | null {
   if (node.tpnc == null) return null;
   const seller = obj(arr(obj(node.sellers).results)[0]);
   const promotions = parsePromotions(seller.promotions);
+  const catchWeightList = parseCatchWeightList(node.catchWeightList);
   return {
     sku: String(node.tpnc),
     tpnb: id(node.tpnb),
     title: str(node.title) ?? "",
     brand: str(node.brandName),
     price: parsePrice(seller.price),
+    ...(catchWeightList ? { catchWeightList } : {}),
     onOffer: promotions.length > 0,
     promotions,
   };
