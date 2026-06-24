@@ -141,6 +141,7 @@ The full grocery lifecycle, typed end to end:
 
 - **Nutrition** — typed macros and structured micros, normalized from a product's on-pack rows when present; filter and rank a search by nutrition (anonymous)
 - **Catalogue** — `search`, `getProduct`, `browseCategory` (anonymous); `favourites` / "my usuals" (authed)
+- **Product images** — `imageUrl` on every product/result; `resizeImageUrl(url, { width, height })` for thumbnails (anonymous)
 - **Basket** — `add`, `set`, `remove`, `get`
 - **Slots** — delivery and collection: `list` / `book` / `release`
 - **Orders** — `list`, `amend`, `cancel`, `lastFulfilled` (reorder)
