@@ -25,6 +25,8 @@ The full surface. For the pitch, quick start, and how it works, see the [README]
 
 `Product` and `SearchResult` include `imageUrl: string | null`, populated from Tesco's `defaultImageUrl` when it is present. Search-like APIs (`search`, `browseCategory`, and `favourites`) return this field without requiring a separate product lookup.
 
+`Product`, `SearchResult`, and `BasketLine` also include `available: boolean | null` (Tesco's `isForSale`). Availability is **slot-specific**: anonymous reads report the optimistic national answer, while reads on a session bound to a booked slot report the real per-store answer — the same SKU can come back `available: true` anonymously and `false` once a slot is attached. `basket.add`/`set` reject unavailable lines with `ItemUnavailableError` (see Errors).
+
 ```ts
 import { Basketeer, resizeImageUrl } from "basketeer";
 
@@ -112,4 +114,5 @@ Everything thrown is a `BasketeerError` subclass:
 - `RateLimitedError` — `429`/`403`. The client stops rather than retry-storming; back off.
 - `AuthExpiredError` — the session couldn't be refreshed; re-authenticate.
 - `LineRejectedError` — Tesco rejected a basket-line update (never assume a write succeeded).
+- `ItemUnavailableError` — a SKU you added is unavailable for the basket's slot/store (`isForSale` false). Tesco accepts it silently then drops it at checkout, so the client rolls the line back and throws this; affected SKUs are on `.skus`.
 - `GraphQLRequestError` — a non-auth GraphQL error (full detail on `.errors`; the message is scrubbed).

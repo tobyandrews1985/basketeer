@@ -185,6 +185,47 @@ describe("error taxonomy", () => {
     const t = new Basketeer({ session: SESSION, throttleMs: 0, fetchImpl: impl });
     await expect(t.basket.set("999", 1)).rejects.toBeInstanceOf(LineRejectedError);
   });
+
+  it("throws ItemUnavailableError and rolls back when an added line is not for sale", async () => {
+    const unavailable = {
+      data: {
+        basket: {
+          id: "b1",
+          items: [{ id: "L1", quantity: 1, product: { id: "777", isForSale: false } }],
+          updates: { items: [{ id: "777", successful: true }] },
+        },
+      },
+    };
+    const rolledBack = { data: { basket: { id: "b1", items: [], updates: { items: [] } } } };
+    const { impl, calls } = stubFetch([{ body: [unavailable] }, { body: [rolledBack] }]);
+    const t = new Basketeer({ session: SESSION, throttleMs: 0, fetchImpl: impl });
+
+    await expect(t.basket.set("777", 1)).rejects.toMatchObject({
+      name: "ItemUnavailableError",
+      skus: ["777"],
+    });
+    // Two calls: the add, then a rollback setting the line to 0.
+    expect(calls).toHaveLength(2);
+    expect(calls[1]!.body[0].variables.items[0]).toMatchObject({ id: "777", newValue: 0 });
+  });
+
+  it("does not flag an available added line", async () => {
+    const body = [
+      {
+        data: {
+          basket: {
+            id: "b1",
+            items: [{ id: "L1", quantity: 1, product: { id: "555", isForSale: true } }],
+            updates: { items: [{ id: "555", successful: true }] },
+          },
+        },
+      },
+    ];
+    const { impl } = stubFetch([{ body }]);
+    const t = new Basketeer({ session: SESSION, throttleMs: 0, fetchImpl: impl });
+    const basket = await t.basket.set("555", 1);
+    expect(basket.items[0]!.available).toBe(true);
+  });
 });
 
 describe("401 refresh-and-retry", () => {

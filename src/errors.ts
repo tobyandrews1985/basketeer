@@ -66,3 +66,17 @@ export class LineRejectedError extends BasketeerError {
     this.lineId = lineId;
   }
 }
+
+/**
+ * One or more SKUs are unavailable for the basket's slot/store (Tesco's
+ * `isForSale` is false). Tesco silently accepts these on write then drops them
+ * at checkout, so the client rolls the affected lines back and throws this
+ * instead. Availability is slot-specific — see {@link Product.available}.
+ */
+export class ItemUnavailableError extends BasketeerError {
+  readonly skus: string[];
+  constructor(skus: string[]) {
+    super(`Unavailable for your slot, not added: ${skus.join(", ")}`);
+    this.skus = skus;
+  }
+}

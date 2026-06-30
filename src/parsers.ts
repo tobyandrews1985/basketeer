@@ -30,6 +30,7 @@ const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 const objs = (v: unknown): Raw[] =>
   arr(v).filter((x): x is Raw => x !== null && typeof x === "object");
 const str = (v: unknown): string | null => (typeof v === "string" ? v : null);
+const bool = (v: unknown): boolean | null => (typeof v === "boolean" ? v : null);
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
 const id = (v: unknown): string | null => (v == null ? null : String(v));
 
@@ -75,6 +76,7 @@ export function parseProduct(v: unknown): Product {
     brand: str(node.brandName),
     imageUrl: str(node.defaultImageUrl),
     price: parsePrice(node.price),
+    available: bool(node.isForSale),
     packSize: parsePackSize(details.packSize),
     promotions: parsePromotions(node.promotions),
     nutrition,
@@ -100,6 +102,7 @@ export function parseProductNode(v: unknown): SearchResult | null {
     brand: str(node.brandName),
     imageUrl: str(node.defaultImageUrl),
     price: parsePrice(seller.price),
+    available: bool(node.isForSale),
     onOffer: promotions.length > 0,
     promotions,
   };
@@ -113,6 +116,7 @@ export function parseBasket(v: unknown): Basket {
     quantity: num(it.quantity) ?? 0,
     unit: str(it.unit),
     cost: num(it.cost),
+    available: bool(obj(it.product).isForSale),
   }));
   return {
     id: id(node.id),

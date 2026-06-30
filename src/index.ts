@@ -12,6 +12,7 @@ export {
   AuthExpiredError,
   BasketeerError,
   GraphQLRequestError,
+  ItemUnavailableError,
   LineRejectedError,
   NotFoundError,
   RateLimitedError,
