@@ -28,6 +28,13 @@ export interface Product {
   brand: string | null;
   imageUrl: string | null;
   price: Price;
+  /**
+   * Tesco's `isForSale` for the read's context, or null if absent. Anonymous
+   * reads report the optimistic NATIONAL answer; reads on a session bound to a
+   * booked slot report the real per-store answer (the same SKU can flip to
+   * `false`). `null` when Tesco omitted the field.
+   */
+  available: boolean | null;
   packSize: PackSize | null;
   promotions: Promotion[];
   /** Normalized nutrition, or null if Tesco returned none / it was unparseable. */
@@ -44,6 +51,8 @@ export interface SearchResult {
   brand: string | null;
   imageUrl: string | null;
   price: Price;
+  /** See {@link Product.available} — context-dependent (anonymous = national). */
+  available: boolean | null;
   onOffer: boolean;
   promotions: Promotion[];
 }
@@ -63,6 +72,12 @@ export interface BasketLine {
   quantity: number;
   unit: string | null;
   cost: number | null;
+  /**
+   * Tesco's `isForSale` for this line in the basket's slot/store context, or
+   * null if absent. `false` means Tesco will drop it at checkout — see
+   * {@link Product.available}.
+   */
+  available: boolean | null;
 }
 
 export interface Basket {

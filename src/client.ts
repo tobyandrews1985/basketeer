@@ -1,5 +1,10 @@
 import type { AuthBackend, Credentials } from "./auth/types.js";
-import { BasketeerError, LineRejectedError, NotFoundError } from "./errors.js";
+import {
+  BasketeerError,
+  ItemUnavailableError,
+  LineRejectedError,
+  NotFoundError,
+} from "./errors.js";
 import { GraphQLTransport } from "./graphql.js";
 import type {
   Basket,
@@ -325,7 +330,21 @@ export class Basketeer {
     const updates = ((data.basket?.updates as Raw | undefined)?.items as Raw[]) ?? [];
     const rejected = updates.filter((u) => u.successful === false).map((u) => String(u.id));
     if (rejected.length) throw new LineRejectedError(rejected.join(", "));
-    return parseBasket(data.basket);
+
+    const basket = parseBasket(data.basket);
+    // Tesco accepts unavailable lines silently (updates.successful stays true)
+    // then drops them at checkout. Mirror its UI: among the SKUs we just added
+    // (newValue > 0), reject any the basket reports as unavailable, roll them
+    // back so the basket matches, and surface them.
+    const added = new Set(items.filter((i) => i.newValue > 0).map((i) => String(i.id)));
+    const unavailable = basket.items
+      .filter((l) => l.sku != null && added.has(l.sku) && l.available === false)
+      .map((l) => l.sku as string);
+    if (unavailable.length) {
+      await this.updateBasket(unavailable.map((id) => ({ id, newValue: 0 })));
+      throw new ItemUnavailableError(unavailable);
+    }
+    return basket;
   }
 
   // --- orders (requires auth) -----------------------------------------------

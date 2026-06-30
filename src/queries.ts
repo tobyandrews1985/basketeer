@@ -6,7 +6,7 @@
 export const GET_PRODUCT = `
 query GetProduct($tpnc: String!) {
   product(tpnc: $tpnc) {
-    tpnb tpnc title brandName defaultImageUrl
+    tpnb tpnc title brandName defaultImageUrl isForSale
     price { actual unitPrice unitOfMeasure }
     promotions {
       description
@@ -30,7 +30,7 @@ query Search($query: String!, $page: Int = 1, $count: Int) {
       node {
         __typename
         ... on ProductInterface {
-          tpnc tpnb title brandName defaultImageUrl
+          tpnc tpnb title brandName defaultImageUrl isForSale
           sellers {
             results {
               price { actual unitPrice unitOfMeasure }
@@ -56,7 +56,7 @@ query GetCategoryProducts($facet: ID, $page: Int = 1, $count: Int) {
       node {
         __typename
         ... on ProductInterface {
-          tpnc tpnb title brandName defaultImageUrl
+          tpnc tpnb title brandName defaultImageUrl isForSale
           sellers {
             results {
               price { actual unitPrice unitOfMeasure }
@@ -75,7 +75,7 @@ query GetFavourites($page: Int = 1, $count: Int, $sortBy: String) {
     products {
       __typename
       ... on ProductInterface {
-        tpnc tpnb title brandName defaultImageUrl
+        tpnc tpnb title brandName defaultImageUrl isForSale
         sellers {
           results {
             price { actual unitPrice unitOfMeasure }
@@ -102,7 +102,7 @@ query GetBasket {
       weight
       cost
       quantity
-      product { id __typename }
+      product { id __typename isForSale }
     }
   }
 }`.trim();
@@ -125,7 +125,7 @@ mutation UpdateBasket($items: [BasketLineItemInputType], $orderId: ID) {
       weight
       cost
       quantity
-      product { id __typename }
+      product { id __typename isForSale }
     }
     updates {
       items { id successful __typename }
