@@ -227,8 +227,15 @@ orders
     const items = last.items
       .filter((it) => it.productId)
       .map((it) => ({ id: it.productId!, newValue: it.quantity, newUnitChoice: it.unit ?? "pcs" }));
-    const basketResult = await client.basket.update(items);
-    emit({ ok: true, reorderedFrom: last.orderNo, lines: items.length, basket: basketResult });
+    const { basket, rejected, unavailable } = await client.basket.update(items);
+    emit({
+      ok: !rejected.length && !unavailable.length,
+      reorderedFrom: last.orderNo,
+      lines: items.length,
+      rejected,
+      unavailable,
+      basket,
+    });
   });
 
 // --- checkout ---------------------------------------------------------------

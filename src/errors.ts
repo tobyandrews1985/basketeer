@@ -68,10 +68,12 @@ export class LineRejectedError extends BasketeerError {
 }
 
 /**
- * One or more SKUs are unavailable for the basket's slot/store (Tesco's
- * `isForSale` is false). Tesco silently accepts these on write then drops them
- * at checkout, so the client rolls the affected lines back and throws this
- * instead. Availability is slot-specific — see {@link Product.available}.
+ * The SKU passed to `basket.add`/`set` is unavailable for the basket's
+ * slot/store (Tesco's `isForSale` is false). Tesco silently accepts these on
+ * write then drops them at checkout, so the client rolls the line back and
+ * throws this instead. The batch `basket.update` does not throw this — it
+ * reports unavailable SKUs on its result. Availability is slot-specific —
+ * see {@link Product.available}.
  */
 export class ItemUnavailableError extends BasketeerError {
   readonly skus: string[];

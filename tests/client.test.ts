@@ -226,6 +226,94 @@ describe("error taxonomy", () => {
     const basket = await t.basket.set("555", 1);
     expect(basket.items[0]!.available).toBe(true);
   });
+
+  it("batch update reports a rejected line on the result instead of throwing", async () => {
+    const body = [
+      {
+        data: {
+          basket: {
+            id: "b1",
+            items: [{ id: "L1", quantity: 1, product: { id: "111", isForSale: true } }],
+            updates: {
+              items: [
+                { id: "111", successful: true },
+                { id: "999", successful: false },
+              ],
+            },
+          },
+        },
+      },
+    ];
+    const { impl } = stubFetch([{ body }]);
+    const t = new Basketeer({ session: SESSION, throttleMs: 0, fetchImpl: impl });
+    const result = await t.basket.update([
+      { id: "111", newValue: 1 },
+      { id: "999", newValue: 1 },
+    ]);
+    expect(result.rejected).toEqual(["999"]);
+    expect(result.unavailable).toEqual([]);
+    expect(result.basket.items[0]!.sku).toBe("111");
+  });
+
+  it("batch update rolls back unavailable lines and reports them on the result", async () => {
+    const mixed = {
+      data: {
+        basket: {
+          id: "b1",
+          items: [
+            { id: "L1", quantity: 1, product: { id: "111", isForSale: true } },
+            { id: "L2", quantity: 1, product: { id: "777", isForSale: false } },
+          ],
+          updates: {
+            items: [
+              { id: "111", successful: true },
+              { id: "777", successful: true },
+            ],
+          },
+        },
+      },
+    };
+    const rolledBack = {
+      data: {
+        basket: {
+          id: "b1",
+          items: [{ id: "L1", quantity: 1, product: { id: "111", isForSale: true } }],
+          updates: { items: [{ id: "777", successful: true }] },
+        },
+      },
+    };
+    const { impl, calls } = stubFetch([{ body: [mixed] }, { body: [rolledBack] }]);
+    const t = new Basketeer({ session: SESSION, throttleMs: 0, fetchImpl: impl });
+
+    const result = await t.basket.update([
+      { id: "111", newValue: 1 },
+      { id: "777", newValue: 1 },
+    ]);
+    expect(result.unavailable).toEqual(["777"]);
+    expect(result.rejected).toEqual([]);
+    // The returned basket is the post-rollback one: the doomed line is gone.
+    expect(result.basket.items.map((l) => l.sku)).toEqual(["111"]);
+    expect(calls).toHaveLength(2);
+    expect(calls[1]!.body[0].variables.items[0]).toMatchObject({ id: "777", newValue: 0 });
+  });
+
+  it("batch update within an amend passes the orderId through to the rollback", async () => {
+    const unavailable = {
+      data: {
+        basket: {
+          id: "b1",
+          items: [{ id: "L1", quantity: 1, product: { id: "777", isForSale: false } }],
+          updates: { items: [{ id: "777", successful: true }] },
+        },
+      },
+    };
+    const rolledBack = { data: { basket: { id: "b1", items: [], updates: { items: [] } } } };
+    const { impl, calls } = stubFetch([{ body: [unavailable] }, { body: [rolledBack] }]);
+    const t = new Basketeer({ session: SESSION, throttleMs: 0, fetchImpl: impl });
+
+    await t.basket.update([{ id: "777", newValue: 1 }], "order-42");
+    expect(calls[1]!.body[0].variables).toMatchObject({ orderId: "order-42" });
+  });
 });
 
 describe("401 refresh-and-retry", () => {

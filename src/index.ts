@@ -23,6 +23,7 @@ export { resizeImageUrl } from "./images.js";
 export type {
   Basket,
   BasketLine,
+  BasketUpdateResult,
   BookedSlot,
   MacroFilterKey,
   Macros,

@@ -91,6 +91,25 @@ export interface Basket {
   raw: unknown;
 }
 
+/**
+ * Result of the low-level batch `basket.update`. Line-level outcomes are
+ * reported here rather than thrown, because a batch can partly succeed: the
+ * remote basket reflects the successful lines even when others fail. The
+ * single-SKU conveniences (`add`/`set`/`remove`) throw instead.
+ */
+export interface BasketUpdateResult {
+  /** The basket after the update (and after any rollback of unavailable lines). */
+  basket: Basket;
+  /** SKUs Tesco rejected outright (`updates.items[].successful === false`). */
+  rejected: string[];
+  /**
+   * SKUs unavailable for the basket's slot/store (`isForSale` false). Tesco
+   * accepts these silently then drops them at checkout, so the client has
+   * already rolled these lines back — see {@link Product.available}.
+   */
+  unavailable: string[];
+}
+
 export interface Slot {
   /** Opaque slot id — pass to slots.book(). */
   id: string;
