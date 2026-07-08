@@ -44,6 +44,13 @@ export interface Product {
   brand: string | null;
   imageUrl: string | null;
   price: Price;
+  /**
+   * Tesco's `isForSale` for the read's context, or null if absent. Anonymous
+   * reads report the optimistic NATIONAL answer; reads on a session bound to a
+   * booked slot report the real per-store answer (the same SKU can flip to
+   * `false`). `null` when Tesco omitted the field.
+   */
+  available: boolean | null;
   packSize: PackSize | null;
   quantityRules: ProductQuantityRules;
   promotions: Promotion[];
@@ -62,6 +69,8 @@ export interface SearchResult {
   imageUrl: string | null;
   price: Price;
   quantityRules: ProductQuantityRules;
+  /** See {@link Product.available} — context-dependent (anonymous = national). */
+  available: boolean | null;
   onOffer: boolean;
   promotions: Promotion[];
 }
@@ -81,6 +90,12 @@ export interface BasketLine {
   quantity: number;
   unit: string | null;
   cost: number | null;
+  /**
+   * Tesco's `isForSale` for this line in the basket's slot/store context, or
+   * null if absent. `false` means Tesco will drop it at checkout — see
+   * {@link Product.available}.
+   */
+  available: boolean | null;
 }
 
 export interface Basket {
@@ -92,6 +107,25 @@ export interface Basket {
   shoppingMethod: string | null;
   items: BasketLine[];
   raw: unknown;
+}
+
+/**
+ * Result of the low-level batch `basket.update`. Line-level outcomes are
+ * reported here rather than thrown, because a batch can partly succeed: the
+ * remote basket reflects the successful lines even when others fail. The
+ * single-SKU conveniences (`add`/`set`/`remove`) throw instead.
+ */
+export interface BasketUpdateResult {
+  /** The basket after the update (and after any rollback of unavailable lines). */
+  basket: Basket;
+  /** SKUs Tesco rejected outright (`updates.items[].successful === false`). */
+  rejected: string[];
+  /**
+   * SKUs unavailable for the basket's slot/store (`isForSale` false). Tesco
+   * accepts these silently then drops them at checkout, so the client has
+   * already rolled these lines back — see {@link Product.available}.
+   */
+  unavailable: string[];
 }
 
 export interface Slot {

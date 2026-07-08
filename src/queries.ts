@@ -6,7 +6,7 @@
 export const GET_PRODUCT = `
 query GetProduct($tpnc: String!) {
   product(tpnc: $tpnc) {
-    tpnb tpnc title brandName defaultImageUrl
+    tpnb tpnc title brandName defaultImageUrl isForSale
     productType averageWeight minWeight maxWeight increment bulkBuyLimit
     catchWeightList { price weight default }
     price { actual unitPrice unitOfMeasure }
@@ -32,7 +32,7 @@ query Search($query: String!, $page: Int = 1, $count: Int) {
       node {
         __typename
         ... on ProductInterface {
-          tpnc tpnb title brandName defaultImageUrl
+          tpnc tpnb title brandName defaultImageUrl isForSale
           productType averageWeight minWeight maxWeight increment bulkBuyLimit
           catchWeightList { price weight default }
           sellers {
@@ -60,7 +60,7 @@ query GetCategoryProducts($facet: ID, $page: Int = 1, $count: Int) {
       node {
         __typename
         ... on ProductInterface {
-          tpnc tpnb title brandName defaultImageUrl
+          tpnc tpnb title brandName defaultImageUrl isForSale
           productType averageWeight minWeight maxWeight increment bulkBuyLimit
           catchWeightList { price weight default }
           sellers {
@@ -81,7 +81,7 @@ query GetFavourites($page: Int = 1, $count: Int, $sortBy: String) {
     products {
       __typename
       ... on ProductInterface {
-        tpnc tpnb title brandName defaultImageUrl
+        tpnc tpnb title brandName defaultImageUrl isForSale
         productType averageWeight minWeight maxWeight increment bulkBuyLimit
         catchWeightList { price weight default }
         sellers {
@@ -110,7 +110,7 @@ query GetBasket {
       weight
       cost
       quantity
-      product { id __typename }
+      product { id __typename isForSale }
     }
   }
 }`.trim();
@@ -133,7 +133,7 @@ mutation UpdateBasket($items: [BasketLineItemInputType], $orderId: ID) {
       weight
       cost
       quantity
-      product { id __typename }
+      product { id __typename isForSale }
     }
     updates {
       items { id successful __typename }

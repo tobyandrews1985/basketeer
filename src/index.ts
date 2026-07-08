@@ -12,6 +12,7 @@ export {
   AuthExpiredError,
   BasketeerError,
   GraphQLRequestError,
+  ItemUnavailableError,
   LineRejectedError,
   NotFoundError,
   RateLimitedError,
@@ -22,6 +23,7 @@ export { resizeImageUrl } from "./images.js";
 export type {
   Basket,
   BasketLine,
+  BasketUpdateResult,
   BookedSlot,
   CatchWeightOption,
   MacroFilterKey,

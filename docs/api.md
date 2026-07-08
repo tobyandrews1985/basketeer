@@ -11,7 +11,8 @@ The full surface. For the pitch, quick start, and how it works, see the [README]
 | Browse | `browseCategory(facet, opts)` → `SearchPage` | anon | Build `facet` with `categoryFacet("Fresh Food")`. |
 | Favourites | `favourites(opts)` → `SearchPage` | authed | "My usuals". |
 | Nutrition search | `searchByNutrition(q, opts)` → `{ results, hydrated, failed, hasMore }` | anon | Keyword search then bounded hydration + filter. See [Nutrition](#nutrition). |
-| Basket | `basket.get / add / set / remove / update` → `Basket` | authed | `add` increments; `set` is exact (0 removes). |
+| Basket | `basket.get / add / set / remove` → `Basket` | authed | `add` increments; `set` is exact (0 removes). |
+| Basket (batch) | `basket.update(items, orderId?)` → `BasketUpdateResult` | authed | `{ basket, rejected, unavailable }` — line failures reported, not thrown. |
 | Delivery slots | `slots.list({ start?, end?, type? })` → `Slot[]` | authed | Default window today..+6 days. |
 | Collection slots | `slots.listCollection(opts)` → `Slot[]` | authed | Click-and-collect. |
 | Book / release | `slots.book(id)` / `slots.release(id)` → `BookedSlot` | authed | Held until `reservationExpiry`. |
@@ -24,6 +25,8 @@ The full surface. For the pitch, quick start, and how it works, see the [README]
 ## Product images
 
 `Product` and `SearchResult` include `imageUrl: string | null`, populated from Tesco's `defaultImageUrl` when it is present. Search-like APIs (`search`, `browseCategory`, and `favourites`) return this field without requiring a separate product lookup.
+
+`Product`, `SearchResult`, and `BasketLine` also include `available: boolean | null` (Tesco's `isForSale`). Availability is **slot-specific**: anonymous reads report the optimistic national answer, while reads on a session bound to a booked slot report the real per-store answer — the same SKU can come back `available: true` anonymously and `false` once a slot is attached. `basket.add`/`set` reject unavailable lines with `ItemUnavailableError` (see Errors); the batch `basket.update` rolls them back too, but reports them on `BasketUpdateResult.unavailable` instead of throwing, because a batch can partly succeed.
 
 ```ts
 import { Basketeer, resizeImageUrl } from "basketeer";
@@ -115,5 +118,6 @@ Everything thrown is a `BasketeerError` subclass:
 - `ApiKeyError` — the public `x-apikey` was rejected (`403 "Invalid Client"`). It rotates ~monthly; set `TESCO_API_KEY` or pass `{ apiKey }`. Never retryable.
 - `RateLimitedError` — `429`/`403`. The client stops rather than retry-storming; back off.
 - `AuthExpiredError` — the session couldn't be refreshed; re-authenticate.
-- `LineRejectedError` — Tesco rejected a basket-line update (never assume a write succeeded).
+- `LineRejectedError` — Tesco rejected the line passed to `basket.add`/`set`/`remove` (never assume a write succeeded). The batch `basket.update` reports rejections on `.rejected` instead.
+- `ItemUnavailableError` — the SKU passed to `basket.add`/`set` is unavailable for the basket's slot/store (`isForSale` false). Tesco accepts it silently then drops it at checkout, so the client rolls the line back and throws this; affected SKUs are on `.skus`. The batch `basket.update` reports these on `.unavailable` instead.
 - `GraphQLRequestError` — a non-auth GraphQL error (full detail on `.errors`; the message is scrubbed).

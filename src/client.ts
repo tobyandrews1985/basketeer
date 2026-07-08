@@ -1,8 +1,14 @@
 import type { AuthBackend, Credentials } from "./auth/types.js";
-import { BasketeerError, LineRejectedError, NotFoundError } from "./errors.js";
+import {
+  BasketeerError,
+  ItemUnavailableError,
+  LineRejectedError,
+  NotFoundError,
+} from "./errors.js";
 import { GraphQLTransport } from "./graphql.js";
 import type {
   Basket,
+  BasketUpdateResult,
   BookedSlot,
   NutritionFilter,
   NutritionSort,
@@ -287,18 +293,22 @@ export class Basketeer {
       if (!Number.isInteger(quantity) || quantity < 1)
         throw new RangeError("quantity must be an integer >= 1");
       const current = (await this.getBasket()).items.find((i) => i.sku === sku)?.quantity ?? 0;
-      return this.updateBasket([{ id: sku, newValue: current + quantity, newUnitChoice: unit }]);
+      return this.updateLine({ id: sku, newValue: current + quantity, newUnitChoice: unit });
     },
     /** Set the line for `sku` to an exact `quantity` (0 removes it). */
     set: (sku: string, quantity: number, unit = "pcs"): Promise<Basket> => {
       if (!Number.isInteger(quantity) || quantity < 0)
         throw new RangeError("quantity must be an integer >= 0");
-      return this.updateBasket([{ id: sku, newValue: quantity, newUnitChoice: unit }]);
+      return this.updateLine({ id: sku, newValue: quantity, newUnitChoice: unit });
     },
     /** Remove `sku` from the basket. */
-    remove: (sku: string): Promise<Basket> => this.updateBasket([{ id: sku, newValue: 0 }]),
-    /** Low-level: send raw basket line inputs (and an optional orderId). */
-    update: (items: BasketItemInput[], orderId?: string): Promise<Basket> =>
+    remove: (sku: string): Promise<Basket> => this.updateLine({ id: sku, newValue: 0 }),
+    /**
+     * Low-level: send raw basket line inputs (and an optional orderId).
+     * A batch can partly succeed, so line-level outcomes (`rejected`,
+     * `unavailable`) are reported on the result rather than thrown.
+     */
+    update: (items: BasketItemInput[], orderId?: string): Promise<BasketUpdateResult> =>
       this.updateBasket(items, orderId),
   };
 
@@ -312,7 +322,18 @@ export class Basketeer {
     return parseBasket(data.basket);
   }
 
-  private async updateBasket(items: BasketItemInput[], orderId?: string): Promise<Basket> {
+  /** Single-line path for `add`/`set`/`remove`: line-level failures throw. */
+  private async updateLine(item: BasketItemInput): Promise<Basket> {
+    const { basket, rejected, unavailable } = await this.updateBasket([item]);
+    if (rejected.length) throw new LineRejectedError(rejected.join(", "));
+    if (unavailable.length) throw new ItemUnavailableError(unavailable);
+    return basket;
+  }
+
+  private async updateBasket(
+    items: BasketItemInput[],
+    orderId?: string,
+  ): Promise<BasketUpdateResult> {
     for (const item of items) reqQty(item.newValue, "quantity");
     const variables: Record<string, unknown> = { items: items.map(normaliseItem) };
     if (orderId !== undefined) variables.orderId = orderId;
@@ -324,8 +345,25 @@ export class Basketeer {
     });
     const updates = ((data.basket?.updates as Raw | undefined)?.items as Raw[]) ?? [];
     const rejected = updates.filter((u) => u.successful === false).map((u) => String(u.id));
-    if (rejected.length) throw new LineRejectedError(rejected.join(", "));
-    return parseBasket(data.basket);
+
+    const basket = parseBasket(data.basket);
+    // Tesco accepts unavailable lines silently (updates.successful stays true)
+    // then drops them at checkout. Mirror its UI: among the SKUs we just added
+    // (newValue > 0), roll back any the basket reports as unavailable and
+    // report them on the result.
+    const added = new Set(items.filter((i) => i.newValue > 0).map((i) => String(i.id)));
+    const unavailable = basket.items
+      .filter((l) => l.sku != null && added.has(l.sku) && l.available === false)
+      .map((l) => l.sku as string);
+    if (unavailable.length) {
+      // The rollback lines are all newValue 0, so this cannot recurse further.
+      const rollback = await this.updateBasket(
+        unavailable.map((id) => ({ id, newValue: 0 })),
+        orderId,
+      );
+      return { basket: rollback.basket, rejected, unavailable };
+    }
+    return { basket, rejected, unavailable };
   }
 
   // --- orders (requires auth) -----------------------------------------------
