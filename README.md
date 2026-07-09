@@ -196,7 +196,7 @@ for (const it of last?.items ?? []) await client.basket.set(it.productId!, it.qu
 
 ## MCP server (for AI agents)
 
-A stdio MCP server ships as the `basketeer-mcp` bin, exposing tools (`basketeer_search`, `basketeer_search_by_nutrition`, `basketeer_nutrition`, `basketeer_basket_set`, `basketeer_slots_list`, `basketeer_orders_list`, `basketeer_checkout`, …) so Claude Desktop or any MCP client can shop. Read-only tools carry `readOnlyHint`; mutating ones carry `destructiveHint`, and `basketeer_orders_cancel` / `basketeer_checkout` take a two-step confirm token. `basketeer_checkout` returns the payment URL for the human. There is no "pay" tool.
+A stdio MCP server ships as the `basketeer-mcp` bin, exposing tools (`basketeer_search`, `basketeer_search_by_nutrition`, `basketeer_nutrition`, `basketeer_basket_set`, `basketeer_slots_list`, `basketeer_orders_list`, `basketeer_checkout`, …) so Claude Desktop or any MCP client can shop. Read-only tools carry `readOnlyHint`; mutating ones carry `destructiveHint`, and `basketeer_orders_cancel` / `basketeer_checkout` take a two-step confirm token. `basketeer_checkout` returns the payment URL for the human. There is no "pay" tool. The search tools take an optional `select` — an array of dot-notation paths (e.g. `["sku", "title", "price.actual", "promotions.description"]`) that trims each result to just those fields, keeping token usage down in agent loops.
 
 ```jsonc
 // claude_desktop_config.json — run `basketeer login` once first so it has a session.

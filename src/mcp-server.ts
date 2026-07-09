@@ -30,6 +30,7 @@ import { BrowserAuthBackend } from "./auth/browser/playwright.js";
 import type { NutritionFilter } from "./index.js";
 import { Basketeer, BasketeerError, FileTokenStore } from "./index.js";
 import { isMainModule } from "./is-main.js";
+import { PRODUCT_FIELDS, projectResults, SEARCH_RESULT_FIELDS } from "./select.js";
 
 /** Wrap a value as MCP JSON text content. */
 function json(value: unknown) {
@@ -48,6 +49,19 @@ async function run(fn: () => Promise<unknown>) {
       content: [{ type: "text" as const, text: JSON.stringify({ error: kind, message }, null, 2) }],
     };
   }
+}
+
+/** Zod param for `select` — the dot-notation projection on search results (issue #10). */
+function selectParam(fields: readonly string[]) {
+  return z
+    .array(z.string())
+    .nonempty()
+    .optional()
+    .describe(
+      "Optional list of dot-notation paths to keep in each result (token saver), " +
+        'e.g. ["sku", "title", "price.actual", "promotions.description"]. ' +
+        `Top-level fields: ${fields.join(", ")}. Omit for full results.`,
+    );
 }
 
 /** Short deterministic token an agent must echo back to confirm a destructive action. */
@@ -70,9 +84,16 @@ export function buildServer(client: Basketeer): McpServer {
     {
       query: z.string().describe("Search terms, e.g. 'semi skimmed milk'."),
       limit: z.number().int().positive().optional(),
+      select: selectParam(SEARCH_RESULT_FIELDS),
     },
     { readOnlyHint: true },
-    ({ query, limit }) => run(() => client.search(query, { limit })),
+    ({ query, limit, select }) =>
+      run(async () => {
+        const page = await client.search(query, { limit });
+        return select
+          ? { ...page, results: projectResults(page.results, select, SEARCH_RESULT_FIELDS) }
+          : page;
+      }),
   );
 
   server.tool(
@@ -120,15 +141,19 @@ export function buildServer(client: Basketeer): McpServer {
         .positive()
         .optional()
         .describe("Max results to return after filtering."),
+      select: selectParam(PRODUCT_FIELDS),
     },
     { readOnlyHint: true },
-    ({ query, minProtein, maxSugar, sortBy, hydrate, limit }) =>
-      run(() => {
+    ({ query, minProtein, maxSugar, sortBy, hydrate, limit, select }) =>
+      run(async () => {
         const where: NutritionFilter = {};
         if (minProtein != null) where.protein = { min: minProtein };
         if (maxSugar != null) where.sugars = { max: maxSugar };
         const sort = sortBy ? { by: sortBy, dir: "desc" as const } : undefined;
-        return client.searchByNutrition(query, { where, sort, hydrate, limit });
+        const page = await client.searchByNutrition(query, { where, sort, hydrate, limit });
+        return select
+          ? { ...page, results: projectResults(page.results, select, PRODUCT_FIELDS) }
+          : page;
       }),
   );
 
