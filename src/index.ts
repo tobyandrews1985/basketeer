@@ -5,7 +5,7 @@ export { keepCookie, sessionFromCookies } from "./auth/harvest.js";
 // Auth seam
 export type { AuthBackend, Credentials, OtpProvider } from "./auth/types.js";
 export type { Amendment, BasketeerOptions, BasketItemInput } from "./client.js";
-export { Basketeer } from "./client.js";
+export { Basketeer, MAX_PRODUCT_BATCH_SIZE } from "./client.js";
 // Errors
 export {
   ApiKeyError,

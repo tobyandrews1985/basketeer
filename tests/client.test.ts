@@ -163,6 +163,47 @@ describe("request assembly", () => {
     expect(searchCalls[0]!.body[0].query).toContain(quantityFields);
   });
 
+  it("fetches multiple products in one aliased request", async () => {
+    const first = PRODUCT_PACKAGED[0]!.data.product;
+    const second = PRODUCT_LOOSE[0]!.data.product;
+    const { impl, calls } = stubFetch([{ body: [{ data: { p0: first, p1: second } }] }]);
+    const products = await new Basketeer({ throttleMs: 0, fetchImpl: impl }).getProducts([
+      "282822189",
+      "275280804",
+      "282822189",
+    ]);
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.body[0].operationName).toBe("GetProducts");
+    expect(calls[0]!.body[0].variables).toEqual({
+      tpnc0: "282822189",
+      tpnc1: "275280804",
+    });
+    expect(calls[0]!.body[0].query).toContain("p0: product(tpnc: $tpnc0)");
+    expect(calls[0]!.body[0].query).toContain("p1: product(tpnc: $tpnc1)");
+    expect(products.map((product) => product.sku)).toEqual(["282822189", "275280804"]);
+  });
+
+  it("omits missing products without discarding successful results", async () => {
+    const product = PRODUCT_PACKAGED[0]!.data.product;
+    const { impl } = stubFetch([{ body: [{ data: { p0: product, p1: null } }] }]);
+
+    const products = await new Basketeer({ throttleMs: 0, fetchImpl: impl }).getProducts([
+      "282822189",
+      "missing",
+    ]);
+
+    expect(products.map((result) => result.sku)).toEqual(["282822189"]);
+  });
+
+  it("bounds batch product requests", async () => {
+    const client = new Basketeer({ throttleMs: 0 });
+    await expect(client.getProducts([])).resolves.toEqual([]);
+    await expect(
+      client.getProducts(Array.from({ length: 16 }, (_, i) => String(i))),
+    ).rejects.toThrow(RangeError);
+  });
+
   it("omits auth headers when anonymous", async () => {
     const { impl, calls } = stubFetch([{ body: SEARCH_BODY }]);
     const t = new Basketeer({ throttleMs: 0, fetchImpl: impl });

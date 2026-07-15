@@ -51,6 +51,7 @@ import {
   GET_LAST_FULFILLED_ORDER,
   GET_PRODUCT,
   GET_UPCOMING_ORDERS,
+  getProductsQuery,
   SEARCH,
   UPDATE_BASKET,
 } from "./queries.js";
@@ -71,6 +72,9 @@ export interface BasketeerOptions {
   /** Injected for tests; defaults to global fetch. */
   fetchImpl?: typeof fetch;
 }
+
+/** Tesco's observed maximum number of aliased product fields in one operation. */
+export const MAX_PRODUCT_BATCH_SIZE = 15;
 
 /** A raw basket line input for the low-level `basket.update`. */
 export interface BasketItemInput {
@@ -184,6 +188,27 @@ export class Basketeer {
     });
     if (!data.product) throw new NotFoundError(`No product found for SKU ${sku}`);
     return parseProduct(data.product);
+  }
+
+  /**
+   * Fetch up to 15 products in one throttled HTTP request. Duplicate SKUs are
+   * fetched once and missing products are omitted from the returned array.
+   */
+  async getProducts(skus: readonly string[]): Promise<Product[]> {
+    const uniqueSkus = [...new Set(skus.map(String))];
+    if (uniqueSkus.length === 0) return [];
+    if (uniqueSkus.length > MAX_PRODUCT_BATCH_SIZE) {
+      throw new RangeError(`skus must contain at most ${MAX_PRODUCT_BATCH_SIZE} unique values`);
+    }
+
+    const variables = Object.fromEntries(uniqueSkus.map((sku, i) => [`tpnc${i}`, sku]));
+    const data = await this.transport.execute<Record<string, Raw | null>>({
+      operationName: "GetProducts",
+      query: getProductsQuery(uniqueSkus.length),
+      variables,
+      mfeName: MFE.product,
+    });
+    return uniqueSkus.flatMap((_, i) => (data[`p${i}`] ? [parseProduct(data[`p${i}`]!)] : []));
   }
 
   async search(query: string, opts: { limit?: number; page?: number } = {}): Promise<SearchPage> {

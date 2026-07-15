@@ -93,6 +93,10 @@ if (top) {
   console.log(product.title, product.price.actual);
   // => "Tesco Wholemeal Bread 800G" 0.75
 }
+
+// Fetch up to 15 SKUs in one throttled HTTP request. Duplicates are fetched
+// once and missing products are omitted.
+const products = await client.getProducts(["282822189", "275280804"]);
 ```
 
 ### Authenticated, sign in once, then pure HTTP
@@ -140,7 +144,7 @@ console.log("Finish payment in a browser:", url);
 The full grocery lifecycle, typed end to end:
 
 - **Nutrition** — typed macros and structured micros, normalized from a product's on-pack rows when present; filter and rank a search by nutrition (anonymous)
-- **Catalogue** — `search`, `getProduct`, `browseCategory` (anonymous); `favourites` / "my usuals" (authed)
+- **Catalogue** — `search`, `getProduct`, batched `getProducts`, `browseCategory` (anonymous); `favourites` / "my usuals" (authed)
 - **Product images** — `imageUrl` on every product/result; `resizeImageUrl(url, { width, height })` for thumbnails (anonymous)
 - **Basket** — `add`, `set`, `remove`, `get`
 - **Slots** — delivery and collection: `list` / `book` / `release`
