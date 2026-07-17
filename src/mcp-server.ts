@@ -27,14 +27,19 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { BrowserAuthBackend } from "./auth/browser/playwright.js";
-import type { NutritionFilter } from "./index.js";
+import type { Basket, NutritionFilter } from "./index.js";
 import { Basketeer, BasketeerError, FileTokenStore } from "./index.js";
 import { isMainModule } from "./is-main.js";
 import { PRODUCT_FIELDS, projectResults, SEARCH_RESULT_FIELDS } from "./select.js";
 
-/** Wrap a value as MCP JSON text content. */
+/**
+ * Wrap a value as MCP JSON text content. `raw` GraphQL escape hatches are
+ * omitted at any depth — they duplicate the parsed fields and waste agent
+ * context (issue #9).
+ */
 function json(value: unknown) {
-  return { content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }] };
+  const text = JSON.stringify(value, (key, v) => (key === "raw" ? undefined : v), 2);
+  return { content: [{ type: "text" as const, text }] };
 }
 
 /** Run a tool body, mapping SDK errors to a clean MCP error result. */
@@ -62,6 +67,21 @@ function selectParam(fields: readonly string[]) {
         'e.g. ["sku", "title", "price.actual", "promotions.description"]. ' +
         `Top-level fields: ${fields.join(", ")}. Omit for full results.`,
     );
+}
+
+/**
+ * Compact mutation receipt (issue #9): basket writes confirm rather than
+ * re-enumerate, so per-call output stays flat as the basket grows. Full state
+ * stays one `basketeer_basket_get` call away.
+ */
+function receipt(basket: Basket, sku: string) {
+  return {
+    sku,
+    quantity: basket.items.find((i) => i.sku === sku)?.quantity ?? 0,
+    itemCount: basket.items.length,
+    guidePrice: basket.guidePrice,
+    isInAmend: basket.isInAmend,
+  };
 }
 
 /** Short deterministic token an agent must echo back to confirm a destructive action. */
@@ -169,21 +189,23 @@ export function buildServer(client: Basketeer): McpServer {
 
   server.tool(
     "basketeer_basket_set",
-    "Set a SKU's basket line to an exact quantity (set-not-increment). quantity 0 removes the line.",
+    "Set a SKU's basket line to an exact quantity (set-not-increment). quantity 0 removes the line. " +
+      "Returns a compact receipt; call basketeer_basket_get for full basket contents.",
     {
       sku: z.string().describe("The product SKU (tpnc) to set."),
       quantity: z.number().int().nonnegative().describe("Exact quantity to set; 0 removes."),
     },
     { readOnlyHint: false, destructiveHint: true },
-    ({ sku, quantity }) => run(() => client.basket.set(sku, quantity)),
+    ({ sku, quantity }) => run(async () => receipt(await client.basket.set(sku, quantity), sku)),
   );
 
   server.tool(
     "basketeer_basket_remove",
-    "Remove a SKU from the basket entirely.",
+    "Remove a SKU from the basket entirely. " +
+      "Returns a compact receipt; call basketeer_basket_get for full basket contents.",
     { sku: z.string().describe("The product SKU (tpnc) to remove.") },
     { readOnlyHint: false, destructiveHint: true },
-    ({ sku }) => run(() => client.basket.remove(sku)),
+    ({ sku }) => run(async () => receipt(await client.basket.remove(sku), sku)),
   );
 
   // --- slots (requires a saved session) -------------------------------------
