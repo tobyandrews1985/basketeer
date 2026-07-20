@@ -17,6 +17,7 @@ The full surface. For the pitch, quick start, and how it works, see the [README]
 | Collection slots | `slots.listCollection(opts)` → `Slot[]` | authed | Click-and-collect. |
 | Book / release | `slots.book(id)` / `slots.release(id)` → `BookedSlot` | authed | Held until `reservationExpiry`. |
 | Orders | `orders.list(opts)` → `Order[]` | authed | Upcoming orders + amend window. |
+| Order history | `orders.history({ offset?, limit?, contexts? })` → `OrderHistoryPage` | authed | Completed orders, newest first. Offset-paged and **live** — see [Order history](#order-history). |
 | Amend | `orders.amend(no)` → `Amendment` | authed | Scoped handle: `.set / .remove / .discard`. |
 | Cancel | `orders.cancel(no)` | authed | Before the cutoff. |
 | Reorder | `orders.lastFulfilled()` → `Order \| null` | authed | Last delivered shop. |
@@ -94,6 +95,37 @@ basketeer search "<query>" --min-protein <g> --max-sugar <g> --sort <field> --hy
 | --- | --- | --- |
 | `basketeer_nutrition` | `{ sku: string }` | Returns the `Nutrition` object for a product. |
 | `basketeer_search_by_nutrition` | `{ query, minProtein?, maxSugar?, sortBy?, hydrate?, limit? }` | Nutrition-filtered search. Returns `{ results, hydrated, failed, hasMore }`. |
+
+## Order history
+
+`orders.history()` pages through completed (previous) grocery orders, newest first, using Tesco's server-side `count`/`offset`. Tesco exposes **no** cursor, total, date filter, or has-next-page signal, so the API models exactly what exists:
+
+- `limit` (default 25, max `MAX_HISTORY_PAGE_SIZE` = 100 — Basketeer's policy cap, not a discovered Tesco limit) maps to Tesco `count`; `offset` advances through the results.
+- A **full** page returns `nextOffset` (= `offset + orders.length`); a **short or empty** page returns `nextOffset: null` and is terminal. A non-null `nextOffset` only means *another request is needed to know* — when the total is an exact multiple of `limit`, the final page is empty.
+- Offsets index a **live** result set, not a snapshot: a newly completed order shifts every later offset, so pages can overlap. Deduplicate by `order.id` and keep the offset only for the duration of one traversal.
+
+```ts
+// One-pass traversal: dedupe by id, never keep the offset beyond the loop.
+const seen = new Set<string>();
+for (let offset: number | null = 0; offset !== null; ) {
+  const page = await client.orders.history({ offset });
+  for (const o of page.orders) {
+    if (seen.has(o.id)) continue; // pages can overlap — the result set is live
+    seen.add(o.id);
+    console.log(o.orderNo, o.slot?.start, o.totalPrice);
+  }
+  offset = page.nextOffset;
+}
+```
+
+**Incremental sync.** A stored offset is *not* a valid cross-run checkpoint. Persist order IDs and sync timestamps instead, and restart every sync at offset 0:
+
+1. Fetch newest-first pages with a fixed `limit`, upserting by `order.id`.
+2. Stop once a complete page contains only IDs already stored by a previous successful sync (require two such pages for a wider overlap window).
+3. Cap pages per run and report an incomplete sync if the cap is hit.
+4. Periodically do a full pass — an older order can change or disappear beyond the overlap window.
+
+This is a client-side heuristic, not a Tesco "orders after" facility. Custom `contexts` (e.g. other order types or statuses) are forwarded unchanged; the default is `PREVIOUS_ORDER_CONTEXTS` (`GROCERY` / `Previous`).
 
 ## Auth: where the browser runs
 

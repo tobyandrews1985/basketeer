@@ -29,7 +29,7 @@ export const MFE = {
   favourites: "mfe-favourites",
 } as const;
 
-/** One context for `orders.list` — an order type plus the statuses to include. */
+/** One context for the order queries — an order type plus the statuses to include. */
 export interface OrderContext {
   type: string;
   statuses: readonly string[];
@@ -40,6 +40,11 @@ export const PENDING_ORDER_CONTEXTS: readonly OrderContext[] = [
   { type: "GROCERY", statuses: ["Pending"] },
   { type: "MARKETPLACE", statuses: ["Pending"] },
   { type: "FNF", statuses: ["Pending"] },
+];
+
+/** Default contexts for `orders.history` — completed (previous) grocery orders. */
+export const PREVIOUS_ORDER_CONTEXTS: readonly OrderContext[] = [
+  { type: "GROCERY", statuses: ["Previous"] },
 ];
 
 /** Fulfilment method types accepted by the slot ops. */

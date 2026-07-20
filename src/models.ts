@@ -195,6 +195,23 @@ export interface Order {
 }
 
 /**
+ * One page of completed-order history. Pagination is offset-based over a
+ * LIVE, newest-first result set — a new completed order shifts every later
+ * offset — so keep `nextOffset` only for the duration of one traversal and
+ * deduplicate by `Order.id`.
+ */
+export interface OrderHistoryPage {
+  orders: Order[];
+  /**
+   * Offset for the next page, or null when this page was short (terminal).
+   * Non-null only means "another request is needed to know" — Tesco supplies
+   * no authoritative has-next-page signal, so when the total is an exact
+   * multiple of `limit` the final page is empty.
+   */
+  nextOffset: number | null;
+}
+
+/**
  * An authenticated session. For the browser-minted hybrid (v1), `accessToken`
  * is the harvested `OAuth.AccessToken` bearer and `customerUuid` is the `UUID`
  * cookie. `cookies` carries the tesco.com cookies replayed on writes (auth +

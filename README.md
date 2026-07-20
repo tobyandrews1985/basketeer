@@ -196,6 +196,11 @@ await client.orders.cancel(orders[0]!.orderNo);
 // "Reorder my usual shop":
 const last = await client.orders.lastFulfilled();
 for (const it of last?.items ?? []) await client.basket.set(it.productId!, it.quantity, it.unit ?? "pcs");
+
+// Completed orders, newest first, offset-paged (Tesco has no cursor or total).
+// The result set is LIVE — dedupe by order.id and never persist nextOffset.
+let page = await client.orders.history();               // { orders, nextOffset }
+while (page.nextOffset !== null) page = await client.orders.history({ offset: page.nextOffset });
 ```
 
 ## MCP server (for AI agents)
