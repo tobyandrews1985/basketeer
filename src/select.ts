@@ -25,7 +25,9 @@ const SEARCH_RESULT_KEYS: Record<keyof SearchResult, true> = {
 };
 export const SEARCH_RESULT_FIELDS: readonly string[] = Object.keys(SEARCH_RESULT_KEYS);
 
-const PRODUCT_KEYS: Record<keyof Product, true> = {
+// `raw` is excluded: MCP outputs strip it at serialisation (issue #9), so
+// offering it as a select field would advertise a field that never appears.
+const PRODUCT_KEYS: Record<Exclude<keyof Product, "raw">, true> = {
   sku: true,
   tpnb: true,
   title: true,
@@ -37,7 +39,6 @@ const PRODUCT_KEYS: Record<keyof Product, true> = {
   promotions: true,
   nutrition: true,
   macros: true,
-  raw: true,
   quantityRules: true,
 };
 export const PRODUCT_FIELDS: readonly string[] = Object.keys(PRODUCT_KEYS);

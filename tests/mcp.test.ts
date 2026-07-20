@@ -25,6 +25,67 @@ describe("buildServer", () => {
   });
 });
 
+describe("basket mutation receipts (issue #9)", () => {
+  const basket = {
+    id: "b1",
+    guidePrice: 17.14,
+    isInAmend: false,
+    amendExpiry: null,
+    shoppingMethod: "DELIVERY",
+    items: [
+      { id: "l1", sku: "111", quantity: 2, unit: "pcs", cost: 3.5, available: true },
+      { id: "l2", sku: "222", quantity: 1, unit: "pcs", cost: 1.2, available: true },
+    ],
+    raw: { __typename: "BasketType", huge: "blob" },
+  };
+
+  async function callTool(name: string, args: Record<string, unknown>) {
+    const stub = {
+      basket: {
+        get: async () => basket,
+        set: async () => basket,
+        remove: async () => basket,
+      },
+    } as unknown as Basketeer;
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await buildServer(stub).connect(serverTransport);
+    const client = new Client({ name: "test", version: "0.0.0" });
+    await client.connect(clientTransport);
+    const res = (await client.callTool({ name, arguments: args })) as unknown as {
+      content: [{ text: string }];
+    };
+    return JSON.parse(res.content[0].text);
+  }
+
+  it("basket_set returns a compact receipt, not the basket", async () => {
+    const body = await callTool("basketeer_basket_set", { sku: "111", quantity: 2 });
+    expect(body).toEqual({
+      sku: "111",
+      quantity: 2,
+      itemCount: 2,
+      guidePrice: 17.14,
+      isInAmend: false,
+    });
+  });
+
+  it("basket_remove reports quantity 0 for a sku no longer in the basket", async () => {
+    const body = await callTool("basketeer_basket_remove", { sku: "999" });
+    expect(body).toEqual({
+      sku: "999",
+      quantity: 0,
+      itemCount: 2,
+      guidePrice: 17.14,
+      isInAmend: false,
+    });
+  });
+
+  it("basket_get keeps full contents but strips the raw escape hatch", async () => {
+    const body = await callTool("basketeer_basket_get", {});
+    expect(body.items).toHaveLength(2);
+    expect(body).not.toHaveProperty("raw");
+  });
+});
+
 describe("basketeer_search select", () => {
   const page = {
     results: [
