@@ -1,6 +1,6 @@
 {
   "name": "basketeer",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Typed, pure-HTTP TypeScript SDK for your own Tesco grocery account — search, basket, delivery slots, and orders over plain fetch. Browser only for login + payment.",
   "type": "module",
   "license": "MIT",
