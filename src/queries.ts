@@ -3,27 +3,41 @@
  * Internal — not part of the public API. Config/constants live in operations.ts.
  */
 
+const PRODUCT_FIELDS = `
+  tpnb tpnc title brandName defaultImageUrl isForSale
+  productType averageWeight minWeight maxWeight increment bulkBuyLimit
+  catchWeightList { price weight default }
+  price { actual unitPrice unitOfMeasure }
+  promotions {
+    description
+    startDate
+    endDate
+    attributes
+    price { afterDiscount beforeDiscount }
+  }
+  details {
+    packSize { value units }
+    nutrition { name value1 value2 value3 }
+    ingredients
+  }
+`.trim();
+
 export const GET_PRODUCT = `
 query GetProduct($tpnc: String!) {
   product(tpnc: $tpnc) {
-    tpnb tpnc title brandName defaultImageUrl isForSale
-    productType averageWeight minWeight maxWeight increment bulkBuyLimit
-    catchWeightList { price weight default }
-    price { actual unitPrice unitOfMeasure }
-    promotions {
-      description
-      startDate
-      endDate
-      attributes
-      price { afterDiscount beforeDiscount }
-    }
-    details {
-      packSize { value units }
-      nutrition { name value1 value2 value3 }
-      ingredients
-    }
+    ${PRODUCT_FIELDS}
   }
 }`.trim();
+
+/** Build one aliased GraphQL operation so a product set costs one HTTP request. */
+export function getProductsQuery(count: number): string {
+  const variables = Array.from({ length: count }, (_, i) => `$tpnc${i}: String!`).join(", ");
+  const products = Array.from(
+    { length: count },
+    (_, i) => `p${i}: product(tpnc: $tpnc${i}) { ${PRODUCT_FIELDS} }`,
+  ).join("\n  ");
+  return `query GetProducts(${variables}) {\n  ${products}\n}`;
+}
 
 export const SEARCH = `
 query Search($query: String!, $page: Int = 1, $count: Int) {
