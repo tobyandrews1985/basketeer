@@ -5,7 +5,7 @@ export { keepCookie, sessionFromCookies } from "./auth/harvest.js";
 // Auth seam
 export type { AuthBackend, Credentials, OtpProvider } from "./auth/types.js";
 export type { Amendment, BasketeerOptions, BasketItemInput } from "./client.js";
-export { Basketeer, MAX_PRODUCT_BATCH_SIZE } from "./client.js";
+export { Basketeer, MAX_HISTORY_PAGE_SIZE, MAX_PRODUCT_BATCH_SIZE } from "./client.js";
 // Errors
 export {
   ApiKeyError,
@@ -35,6 +35,7 @@ export type {
   NutritionSort,
   Order,
   OrderAddress,
+  OrderHistoryPage,
   OrderItem,
   OrderSlot,
   PackSize,
@@ -58,6 +59,7 @@ export {
   ENDPOINT,
   FULFILMENT_TYPE,
   PENDING_ORDER_CONTEXTS,
+  PREVIOUS_ORDER_CONTEXTS,
   PUBLIC_API_KEY,
 } from "./operations.js";
 // Storage seam

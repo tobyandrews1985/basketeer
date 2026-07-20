@@ -13,6 +13,7 @@ import type {
   NutritionFilter,
   NutritionSort,
   Order,
+  OrderHistoryPage,
   Product,
   SearchPage,
   SearchResult,
@@ -27,6 +28,7 @@ import {
   MFE,
   type OrderContext,
   PENDING_ORDER_CONTEXTS,
+  PREVIOUS_ORDER_CONTEXTS,
 } from "./operations.js";
 import {
   isoDate,
@@ -49,6 +51,7 @@ import {
   GET_CATEGORY_PRODUCTS,
   GET_FAVOURITES,
   GET_LAST_FULFILLED_ORDER,
+  GET_ORDER_HISTORY,
   GET_PRODUCT,
   GET_UPCOMING_ORDERS,
   getProductsQuery,
@@ -75,6 +78,9 @@ export interface BasketeerOptions {
 
 /** Tesco's observed maximum number of aliased product fields in one operation. */
 export const MAX_PRODUCT_BATCH_SIZE = 15;
+
+/** Basketeer's policy cap on `orders.history` page size — not a discovered Tesco limit. */
+export const MAX_HISTORY_PAGE_SIZE = 100;
 
 /** A raw basket line input for the low-level `basket.update`. */
 export interface BasketItemInput {
@@ -398,6 +404,16 @@ export class Basketeer {
     list: (opts: { contexts?: readonly OrderContext[] } = {}): Promise<Order[]> =>
       this.listOrders(opts),
     /**
+     * One page of completed (previous) orders, newest first. `limit` defaults
+     * to 25 (max {@link MAX_HISTORY_PAGE_SIZE}). Offset pagination runs over a
+     * LIVE result set: follow `nextOffset` within a single traversal, dedupe
+     * by `Order.id`, and never persist an offset across runs — a new completed
+     * order shifts every later offset.
+     */
+    history: (
+      opts: { offset?: number; limit?: number; contexts?: readonly OrderContext[] } = {},
+    ): Promise<OrderHistoryPage> => this.orderHistory(opts),
+    /**
      * Open an order for amendment. Returns an {@link Amendment} handle whose
      * basket ops apply to THAT order; finish by checking out again, or call
      * `discard()`. Only works before the order's `amendExpiry`. While amending,
@@ -448,6 +464,34 @@ export class Basketeer {
       mfeName: MFE.orders,
     });
     return (data.orderSearch?.orders ?? []).map(parseOrder);
+  }
+
+  private async orderHistory(opts: {
+    offset?: number;
+    limit?: number;
+    contexts?: readonly OrderContext[];
+  }): Promise<OrderHistoryPage> {
+    // Never forward surprising values: Tesco treats count: 0 as UNBOUNDED and
+    // returns an empty (terminal-looking) page for a negative offset.
+    reqInt(opts.offset, "offset", 0);
+    reqInt(opts.limit, "limit", 1);
+    if (opts.limit !== undefined && opts.limit > MAX_HISTORY_PAGE_SIZE)
+      throw new RangeError(`limit must be an integer <= ${MAX_HISTORY_PAGE_SIZE}`);
+    const offset = opts.offset ?? 0;
+    const limit = opts.limit ?? 25;
+    const data = await this.transport.execute<{ orderSearch?: { orders?: unknown } }>({
+      operationName: "GetOrderHistory",
+      query: GET_ORDER_HISTORY,
+      variables: { orderContexts: opts.contexts ?? PREVIOUS_ORDER_CONTEXTS, count: limit, offset },
+      mfeName: MFE.orders,
+    });
+    // Strict, unlike list(): a short page is this API's only terminal signal,
+    // so a malformed response must not masquerade as one.
+    const raw = data.orderSearch?.orders;
+    if (!Array.isArray(raw))
+      throw new BasketeerError("GetOrderHistory returned no orderSearch.orders array");
+    const orders = raw.map(parseOrder);
+    return { orders, nextOffset: orders.length < limit ? null : offset + orders.length };
   }
 
   private async orderAction(query: string, operationName: string, orderNo: string): Promise<void> {

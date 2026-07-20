@@ -157,10 +157,7 @@ mutation UpdateBasket($items: [BasketLineItemInputType], $orderId: ID) {
 
 // ---- orders ----------------------------------------------------------------
 
-export const GET_UPCOMING_ORDERS = `
-query GetUpcomingOrders($orderContexts: [OrderContextType]) {
-  orderSearch(orderContexts: $orderContexts) {
-    orders {
+const ORDER_FIELDS = `
       id
       orderNo
       status
@@ -172,7 +169,24 @@ query GetUpcomingOrders($orderContexts: [OrderContextType]) {
       paymentMode
       slot { id start end charge }
       address { name city addressLine1 postcode }
-      items { id quantity unit weight product { id title } }
+      items { id quantity unit weight product { id title } }`;
+
+export const GET_UPCOMING_ORDERS = `
+query GetUpcomingOrders($orderContexts: [OrderContextType]) {
+  orderSearch(orderContexts: $orderContexts) {
+    orders {${ORDER_FIELDS}
+    }
+  }
+}`.trim();
+
+// Offset pagination over a LIVE, newest-first result set. Tesco's orderSearch
+// exposes only count/offset — no cursor, total, or page metadata — so terminal
+// state is inferred from a short page. The schema accepts `page` but ignores
+// it; never send it.
+export const GET_ORDER_HISTORY = `
+query GetOrderHistory($orderContexts: [OrderContextType], $count: Int, $offset: Int) {
+  orderSearch(orderContexts: $orderContexts, count: $count, offset: $offset) {
+    orders {${ORDER_FIELDS}
     }
   }
 }`.trim();

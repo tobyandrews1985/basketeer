@@ -1,8 +1,8 @@
 /**
- * Read your orders over pure HTTP: list upcoming orders and inspect the last
- * fulfilled order (its items, for a "reorder my usual shop" flow). Amend and
- * cancel are shown COMMENTED OUT — this example never mutates an order.
- * Run `npm run auth:login` first.
+ * Read your orders over pure HTTP: list upcoming orders, page through completed
+ * order history, and inspect the last fulfilled order (its items, for a
+ * "reorder my usual shop" flow). Amend and cancel are shown COMMENTED OUT —
+ * this example never mutates an order. Run `npm run auth:login` first.
  *
  *   npx tsx examples/orders.ts
  */
@@ -30,6 +30,22 @@ async function main() {
       `  #${o.orderNo}  ${o.status}  ${o.totalItems ?? "?"} items  £${o.totalPrice ?? "?"}  slot ${when}  (${amend})`,
     );
   }
+
+  // Completed orders, newest first. Offset-paged over a LIVE result set, so
+  // dedupe by order.id and keep nextOffset only for the duration of this loop.
+  console.log("\nOrder history (up to 3 pages):");
+  const seen = new Set<string>();
+  let pages = 0;
+  for (let offset: number | null = 0; offset !== null && pages < 3; pages++) {
+    const page = await t.orders.history({ offset, limit: 10 });
+    for (const o of page.orders) {
+      if (seen.has(o.id)) continue;
+      seen.add(o.id);
+      console.log(`  #${o.orderNo}  ${o.status}  £${o.totalPrice ?? "?"}  ${o.slot?.start ?? "?"}`);
+    }
+    offset = page.nextOffset;
+  }
+  console.log(`History shown: ${seen.size} orders (first ${pages} page(s))`);
 
   // Last delivered order — its items are reorderable.
   const last = await t.orders.lastFulfilled();
