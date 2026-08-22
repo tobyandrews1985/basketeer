@@ -221,6 +221,22 @@ export function buildServer(client: Basketeer): McpServer {
     ({ start, end }) => run(() => client.slots.list({ start, end })),
   );
 
+  server.tool(
+    "basketeer_slots_book",
+    "Reserve a Tesco delivery slot by slot ID. This changes the basket's delivery-slot reservation but does not place or pay for an order.",
+    { slotId: z.string().describe("The delivery slot ID returned by basketeer_slots_list.") },
+    { readOnlyHint: false, destructiveHint: false },
+    ({ slotId }) => run(() => client.slots.book(slotId)),
+  );
+
+  server.tool(
+    "basketeer_slots_release",
+    "Release the currently reserved Tesco delivery slot by slot ID.",
+    { slotId: z.string().describe("The reserved delivery slot ID to release.") },
+    { readOnlyHint: false, destructiveHint: true },
+    ({ slotId }) => run(() => client.slots.release(slotId)),
+  );
+
   // --- orders (requires a saved session) ------------------------------------
 
   server.tool(
