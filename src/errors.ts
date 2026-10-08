@@ -35,6 +35,19 @@ export class ApiKeyError extends BasketeerError {}
 /** Thrown when a requested resource does not exist (e.g. an unknown SKU). */
 export class NotFoundError extends BasketeerError {}
 
+/** A pre-execution authorization hook blocked a consequential operation. */
+export class AuthorizationDeniedError extends BasketeerError {
+  readonly operation: string;
+  readonly reason: string | null;
+  readonly proofId: string | null;
+  constructor(operation: string, reason?: string, proofId?: string) {
+    super(`Authorization denied for ${operation}${reason ? `: ${reason}` : ""}`);
+    this.operation = operation;
+    this.reason = reason ?? null;
+    this.proofId = proofId ?? null;
+  }
+}
+
 /** The GraphQL response carried an `errors` array (non-auth). */
 export class GraphQLRequestError extends BasketeerError {
   /** The raw GraphQL errors, for programmatic inspection. */

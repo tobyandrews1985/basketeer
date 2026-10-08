@@ -23,6 +23,31 @@ The full surface. For the pitch, quick start, and how it works, see the [README]
 | Reorder | `orders.lastFulfilled()` → `Order \| null` | authed | Last delivered shop. |
 | Checkout | `checkout()` → `{ basket, url }` | authed | **Stops at the payment URL. Never pays.** |
 
+## Optional authorization
+
+Pass `authorization` to `new Basketeer(...)` to require a pre-execution decision before consequential operations. The hook receives a canonical action object containing `operation`, `resource`, `args`, and a SHA-256 `digest`. Returning `{ allowed: true, proofVerified: true }` permits execution. Returning deny, omitting proof verification, throwing, or timing out blocks execution with `AuthorizationDeniedError`.
+
+Protected operations are `basket.update`, `slot.book`, `slot.release`, `order.amend`, `order.cancel`, `order.discard_amend`, and `checkout.handoff`.
+
+```ts
+const client = new Basketeer({
+  authorization: {
+    authorizer: {
+      authorize: async (action) => {
+        const decision = await myPolicyService.authorize(action);
+        return {
+          allowed: decision.allowed,
+          proofVerified: decision.proofVerified,
+          reason: decision.reason,
+        };
+      },
+    },
+  },
+});
+```
+
+An optional AffixIO adapter is exported as `createAffixioAuthorizer`. It loads the `affixio` package only when used, so normal Basketeer installs remain unchanged.
+
 ## Product images
 
 `Product` and `SearchResult` include `imageUrl: string | null`, populated from Tesco's `defaultImageUrl` when it is present. Search-like APIs (`search`, `browseCategory`, and `favourites`) return this field without requiring a separate product lookup.

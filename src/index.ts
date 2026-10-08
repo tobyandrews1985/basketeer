@@ -1,15 +1,26 @@
 // Public API surface. Everything exported here is part of the semver contract;
 // internal modules (transport, queries, parsers, session-manager) are not.
 
+export type { AffixioAuthorizerOptions } from "./affixio-authorizer.js";
+export { createAffixioAuthorizer } from "./affixio-authorizer.js";
 export { keepCookie, sessionFromCookies } from "./auth/harvest.js";
 // Auth seam
 export type { AuthBackend, Credentials, OtpProvider } from "./auth/types.js";
+export type {
+  AuthorizationDecision,
+  AuthorizationOptions,
+  AuthorizeAction,
+  ConsequentialOperation,
+  PreExecutionAuthorizer,
+} from "./authorization.js";
+export { actionDigest, canonicalJson } from "./authorization.js";
 export type { Amendment, BasketeerOptions, BasketItemInput } from "./client.js";
 export { Basketeer, MAX_HISTORY_PAGE_SIZE, MAX_PRODUCT_BATCH_SIZE } from "./client.js";
 // Errors
 export {
   ApiKeyError,
   AuthExpiredError,
+  AuthorizationDeniedError,
   BasketeerError,
   GraphQLRequestError,
   ItemUnavailableError,

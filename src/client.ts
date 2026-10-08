@@ -1,5 +1,12 @@
 import type { AuthBackend, Credentials } from "./auth/types.js";
+import type {
+  AuthorizationDecision,
+  AuthorizationOptions,
+  AuthorizeAction,
+} from "./authorization.js";
+import { actionDigest } from "./authorization.js";
 import {
+  AuthorizationDeniedError,
   BasketeerError,
   ItemUnavailableError,
   LineRejectedError,
@@ -74,6 +81,8 @@ export interface BasketeerOptions {
   throttleMs?: number;
   /** Injected for tests; defaults to global fetch. */
   fetchImpl?: typeof fetch;
+  /** Optional pre-execution gate for consequential operations. Disabled by default. */
+  authorization?: AuthorizationOptions;
 }
 
 /** Tesco's observed maximum number of aliased product fields in one operation. */
@@ -136,6 +145,7 @@ export interface Amendment {
 export class Basketeer {
   private readonly transport: GraphQLTransport;
   private readonly sessions: SessionManager;
+  private readonly authorization?: AuthorizationOptions;
   private _amendingOrderNo: string | null = null;
 
   constructor(opts: BasketeerOptions = {}) {
@@ -144,6 +154,7 @@ export class Basketeer {
       backend: opts.authBackend,
       store: opts.store,
     });
+    this.authorization = opts.authorization;
     this.transport = new GraphQLTransport({
       apiKey: opts.apiKey,
       throttleMs: opts.throttleMs,
@@ -368,6 +379,10 @@ export class Basketeer {
     for (const item of items) reqQty(item.newValue, "quantity");
     const variables: Record<string, unknown> = { items: items.map(normaliseItem) };
     if (orderId !== undefined) variables.orderId = orderId;
+    await this.authorize("basket.update", {
+      resource: `tesco:basket:${orderId ?? "current"}`,
+      args: variables,
+    });
     const data = await this.transport.execute<{ basket?: Raw }>({
       operationName: "UpdateBasket",
       query: UPDATE_BASKET,
@@ -427,6 +442,10 @@ export class Basketeer {
   };
 
   private async amendOrder(orderNo: string): Promise<Amendment> {
+    await this.authorize("order.amend", {
+      resource: `tesco:order:${orderNo}`,
+      args: { orderNo },
+    });
     await this.orderAction(AMEND_ORDER, "AmendOrder", orderNo);
     this._amendingOrderNo = orderNo;
     return {
@@ -435,6 +454,10 @@ export class Basketeer {
       set: (sku, quantity, unit) => this.basket.set(sku, quantity, unit),
       remove: (sku) => this.basket.remove(sku),
       discard: async () => {
+        await this.authorize("order.discard_amend", {
+          resource: `tesco:order:${orderNo}`,
+          args: { orderNo },
+        });
         await this.orderAction(CANCEL_AMEND, "CancelAmend", orderNo);
         if (this._amendingOrderNo === orderNo) this._amendingOrderNo = null;
       },
@@ -442,6 +465,10 @@ export class Basketeer {
   }
 
   private async cancelOrder(orderNo: string): Promise<void> {
+    await this.authorize("order.cancel", {
+      resource: `tesco:order:${orderNo}`,
+      args: { orderNo },
+    });
     await this.orderAction(CANCEL_ORDER, "CancelOrder", orderNo);
     if (this._amendingOrderNo === orderNo) this._amendingOrderNo = null;
   }
@@ -513,7 +540,22 @@ export class Basketeer {
    * the basket and book a slot via this SDK, then complete payment at `url`.
    */
   async checkout(): Promise<{ basket: Basket; url: string }> {
-    return { basket: await this.getBasket(), url: CHECKOUT_URL };
+    const basket = await this.getBasket();
+    await this.authorize("checkout.handoff", {
+      resource: `tesco:checkout:${basket.id ?? "current"}`,
+      args: {
+        basketId: basket.id,
+        guidePrice: basket.guidePrice,
+        itemCount: basket.items.length,
+        items: basket.items.map((item) => ({
+          sku: item.sku,
+          quantity: item.quantity,
+          unit: item.unit,
+        })),
+        url: CHECKOUT_URL,
+      },
+    });
+    return { basket, url: CHECKOUT_URL };
   }
 
   // --- slots (requires auth) ------------------------------------------------
@@ -569,6 +611,10 @@ export class Basketeer {
   }
 
   private async fulfilment(slotId: string, action: "BOOK" | "UNBOOK"): Promise<BookedSlot> {
+    await this.authorize(action === "BOOK" ? "slot.book" : "slot.release", {
+      resource: `tesco:slot:${slotId}`,
+      args: { slotId, action },
+    });
     const data = await this.transport.execute<{ fulfilment?: { slot?: Raw } }>({
       operationName: "Fulfilment",
       query: FULFILMENT,
@@ -578,5 +624,37 @@ export class Basketeer {
     const slot = data.fulfilment?.slot;
     if (!slot) throw new BasketeerError(`Slot ${action} returned no slot`);
     return parseBookedSlot(slot);
+  }
+
+  private async authorize(
+    operation: AuthorizeAction["operation"],
+    input: { resource: string; args: Record<string, unknown> },
+  ): Promise<void> {
+    if (!this.authorization) return;
+    const action = {
+      operation,
+      resource: input.resource,
+      args: input.args,
+      digest: await actionDigest({ operation, resource: input.resource, args: input.args }),
+    };
+    const timeoutMs = this.authorization.timeoutMs ?? 5_000;
+    const timeout = Symbol("authorization-timeout");
+    let decision: AuthorizationDecision | typeof timeout;
+    try {
+      decision = await Promise.race([
+        this.authorization.authorizer.authorize(action),
+        new Promise<typeof timeout>((resolve) => setTimeout(() => resolve(timeout), timeoutMs)),
+      ]);
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      throw new AuthorizationDeniedError(operation, reason);
+    }
+    if (decision === timeout)
+      throw new AuthorizationDeniedError(operation, "authorization_timeout");
+    const proofRequired = this.authorization.requireProof !== false;
+    if (!decision.allowed || (proofRequired && decision.proofVerified !== true)) {
+      const reason = !decision.allowed ? (decision.reason ?? "not_allowed") : "proof_not_verified";
+      throw new AuthorizationDeniedError(operation, reason, decision.proofId);
+    }
   }
 }

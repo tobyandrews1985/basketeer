@@ -153,6 +153,27 @@ The full grocery lifecycle, typed end to end:
 
 → Full reference (signatures, return types, the error catalogue, and where the browser runs): **[docs/api.md](https://github.com/tobyandrews1985/basketeer/blob/main/docs/api.md)**
 
+### Optional pre-execution authorization
+
+`Basketeer` can call an application-supplied authorizer before consequential operations run. It is off by default, so existing users do not need an AffixIO account or any extra package.
+
+```ts
+import { Basketeer, createAffixioAuthorizer } from "basketeer";
+
+const client = new Basketeer({
+  authorization: {
+    authorizer: createAffixioAuthorizer({
+      apiKey: process.env.AFFIXIO_API_KEY!,
+      credential,
+    }),
+  },
+});
+
+await client.basket.set("254656543", 2);
+```
+
+When enabled, basket writes, slot booking/release, order amend/cancel, and checkout handoff must receive an explicit allow decision with a locally verified proof. Deny, timeout, service failure, missing proof, or an invalid proof blocks the operation before the Tesco mutation is sent.
+
 ## How it works
 
 Tesco's website talks to a GraphQL gateway at `xapi.tesco.com`. basketeer speaks that protocol directly.
