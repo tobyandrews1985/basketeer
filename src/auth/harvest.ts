@@ -1,5 +1,6 @@
 import { AuthExpiredError } from "../errors.js";
 import { jwtExpiryMs } from "../jwt.js";
+import { isMarketCookieDomain, type Market } from "../market.js";
 import type { Session } from "../models.js";
 
 /** Tesco-domain cookies worth replaying on authenticated calls (auth + Akamai). */
@@ -18,14 +19,26 @@ export function keepCookie(name: string): boolean {
  * (local Chrome, a hosted browser, your own browser farm, …) — the rest of the
  * library doesn't care how the session was minted.
  *
+ * Pass `market` when the cookie list may span several Tesco storefronts (one
+ * browser profile signed in to both tesco.com and itesco.cz carries two
+ * `OAuth.AccessToken` cookies): cookies whose `domain` belongs to another
+ * market are dropped, and the session is stamped with the market's code.
+ * Cookies without a `domain` are always kept.
+ *
  * @throws {AuthExpiredError} if the OAuth.AccessToken / UUID cookies are absent
  *   (sign-in incomplete or session expired).
  */
 export function sessionFromCookies(
-  cookies: ReadonlyArray<{ name: string; value: string }>,
+  cookies: ReadonlyArray<{ name: string; value: string; domain?: string }>,
+  opts: { market?: Market } = {},
 ): Session {
+  const { market } = opts;
   const jar: Record<string, string> = {};
-  for (const c of cookies) if (keepCookie(c.name)) jar[c.name] = c.value;
+  for (const c of cookies) {
+    if (!keepCookie(c.name)) continue;
+    if (market && c.domain !== undefined && !isMarketCookieDomain(market, c.domain)) continue;
+    jar[c.name] = c.value;
+  }
 
   const accessToken = jar["OAuth.AccessToken"];
   const customerUuid = jar["UUID"];
@@ -34,5 +47,11 @@ export function sessionFromCookies(
       "No OAuth.AccessToken + UUID cookies in the harvested set — sign-in incomplete or expired.",
     );
   }
-  return { accessToken, customerUuid, cookies: jar, accessTokenExpiry: jwtExpiryMs(accessToken) };
+  return {
+    accessToken,
+    customerUuid,
+    cookies: jar,
+    accessTokenExpiry: jwtExpiryMs(accessToken),
+    ...(market && { market: market.code }),
+  };
 }

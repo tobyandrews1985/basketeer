@@ -45,33 +45,92 @@ function nrvOf(s: string): number | null {
   return m ? parseFloat(m[1] ?? "0") : null;
 }
 
+/**
+ * Label vocabulary of one language's on-pack nutrition tables. The table
+ * language is per-product data rather than per-market (Czech products can carry
+ * an English "Typical Values" header row), so rows are matched against every
+ * vocabulary at once; labels do not collide across languages.
+ */
+interface NutritionVocabulary {
+  /** Header-row label, e.g. "Typical Values". */
+  header: RegExp;
+  /** Header value naming the basis, e.g. "per 100g", "na 100 g". */
+  basisValue: RegExp;
+  /** Word marking a per-serving basis in a header value. */
+  serving: RegExp;
+  /** Energy-row label (value holds kJ and/or kcal). */
+  energy: RegExp;
+  /** Macro label, as normalized by {@link labelKey}, → macro key. */
+  macros: Readonly<Record<string, keyof Macros>>;
+  /** Rows that are table furniture, not nutrients. */
+  footnotes: readonly RegExp[];
+}
+
+const ENGLISH: NutritionVocabulary = {
+  header: /typical values/i,
+  basisValue: /per\s*100|per\s*serving/i,
+  serving: /serving/i,
+  energy: /^energy/i,
+  macros: {
+    fat: "fat",
+    "total fat": "fat",
+    saturates: "saturates",
+    "of which saturates": "saturates",
+    "saturated fat": "saturates",
+    "of which saturated fat": "saturates",
+    carbohydrate: "carbs",
+    carbohydrates: "carbs",
+    "available carbohydrate": "carbs",
+    "total carbohydrate": "carbs",
+    sugars: "sugars",
+    "of which sugars": "sugars",
+    "total sugars": "sugars",
+    fibre: "fibre",
+    protein: "protein",
+    salt: "salt",
+    "salt equivalent": "salt",
+  },
+  footnotes: [/^of which$/i, /^as sold$/i, /reference intake|nutrient reference value/i],
+};
+
+const CZECH: NutritionVocabulary = {
+  header: /^(výživové údaje|(průměrná |průměrné )?výživov(á|é) hodnot(a|y)|průměrné hodnoty)/i,
+  basisValue: /\b(na|ve?)\s*100|na\s*porci/i,
+  serving: /porc/i,
+  energy: /^(energetická hodnota|energie)/i,
+  macros: {
+    tuky: "fat",
+    "z toho nasycené mastné kyseliny": "saturates",
+    "nasycené mastné kyseliny": "saturates",
+    sacharidy: "carbs",
+    "z toho cukry": "sugars",
+    cukry: "sugars",
+    vláknina: "fibre",
+    bílkoviny: "protein",
+    sůl: "salt",
+  },
+  footnotes: [/^z toho$/i, /referenční hodnot/i],
+};
+
+const VOCABULARIES: readonly NutritionVocabulary[] = [ENGLISH, CZECH];
+
+const MACRO_LABELS: Readonly<Record<string, keyof Macros>> = Object.assign(
+  {},
+  ...VOCABULARIES.map((v) => v.macros),
+);
+
+const isHeader = (name: string, value: string | null): boolean =>
+  VOCABULARIES.some((v) => v.header.test(name) || (value !== null && v.basisValue.test(value)));
+
+const isEnergy = (name: string): boolean => VOCABULARIES.some((v) => v.energy.test(name));
+
 function basisFromHeader(v: string): NutritionBasis {
   const t = v.toLowerCase();
   if (t.includes("100 ml") || t.includes("100ml")) return "per_100ml";
   if (t.includes("100 g") || t.includes("100g")) return "per_100g";
-  if (t.includes("serving")) return "per_serving";
+  if (VOCABULARIES.some((voc) => voc.serving.test(t))) return "per_serving";
   return "unknown";
 }
-
-const MACRO_LABELS: Record<string, keyof Macros> = {
-  fat: "fat",
-  "total fat": "fat",
-  saturates: "saturates",
-  "of which saturates": "saturates",
-  "saturated fat": "saturates",
-  "of which saturated fat": "saturates",
-  carbohydrate: "carbs",
-  carbohydrates: "carbs",
-  "available carbohydrate": "carbs",
-  "total carbohydrate": "carbs",
-  sugars: "sugars",
-  "of which sugars": "sugars",
-  "total sugars": "sugars",
-  fibre: "fibre",
-  protein: "protein",
-  salt: "salt",
-  "salt equivalent": "salt",
-};
 
 /** Trailing unit in a row name: "Fat (g)", "Energy (kcal)", "Calcium (mg)". */
 const UNIT_IN_NAME = /\s*\(\s*(kj|kcal|g|mg|µg|μg)\s*\)\s*$/i;
@@ -99,10 +158,8 @@ function labelKey(name: string): string {
 function isFootnote(name: string, value: string | null): boolean {
   const n = name.trim();
   if (n.startsWith("*")) return true;
-  if (/^of which$/i.test(n)) return true;
-  if (/^as sold$/i.test(n)) return true;
-  if (/reference intake|nutrient reference value/i.test(n)) return true;
-  const known = !!MACRO_LABELS[labelKey(n)] || /^energy/i.test(n);
+  if (VOCABULARIES.some((v) => v.footnotes.some((re) => re.test(n)))) return true;
+  const known = !!MACRO_LABELS[labelKey(n)] || isEnergy(n);
   if (!known && (value === "-" || value === null || value === "")) return true;
   return false;
 }
@@ -133,7 +190,7 @@ export function parseNutrition(rows: unknown[]): Nutrition | null {
     }
 
     // Header row → basis
-    if (/typical values/i.test(name) || (value1 && /per\s*100|per\s*serving/i.test(value1))) {
+    if (isHeader(name, value1)) {
       if (value1) basis = basisFromHeader(value1);
       continue;
     }
@@ -143,7 +200,7 @@ export function parseNutrition(rows: unknown[]): Nutrition | null {
     const baseName = unitInName ? name.replace(UNIT_IN_NAME, "").trim() : name;
 
     // Energy: unit in the name, inline "486kJ / 115kcal", or split "257 kJ/"
-    if (/^energy/i.test(baseName)) {
+    if (isEnergy(baseName)) {
       if (value1 && unitInName && !/kj|kcal/i.test(value1)) {
         if (unitInName === "kcal") macros.energyKcal = num(value1);
         if (unitInName === "kj") macros.energyKj = num(value1);

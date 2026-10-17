@@ -128,6 +128,17 @@ for (let offset: number | null = 0; offset !== null; ) {
 
 This is a client-side heuristic, not a Tesco "orders after" facility. Custom `contexts` (e.g. other order types or statuses) are forwarded unchanged; the default is `PREVIOUS_ORDER_CONTEXTS` (`GROCERY` / `Previous`).
 
+## Markets
+
+`new Basketeer({ market })` takes a built-in code (`"uk"` default, `"cz"`) or a custom `Market`; `client.market` exposes the resolved one. Exports:
+
+- `MARKETS`, `DEFAULT_MARKET`, `resolveMarket(codeOrMarket)` (throws `RangeError` on an unknown code), `isMarketCode(code)`.
+- URL builders: `groceriesUrl(market)`, `loginUrl(market)`, `refreshUrl(market)`, `checkoutUrl(market)`; `isMarketCookieDomain(market, domain)` for custom backends. `CHECKOUT_URL` is the UK checkout URL and is deprecated in favour of `checkoutUrl(market)` / `checkout().url`.
+- `BrowserAuthBackend({ market })` signs in and refreshes on the market's hosts with its locale and time zone. `AuthBackend.market` is optional; when set, a client for another market throws `MarketMismatchError` at construction, before any sign-in.
+- `sessionFromCookies(cookies, { market })` drops cookies whose `domain` belongs to another market and stamps `session.market`; `new FileTokenStore({ market })` (or `defaultSessionPath(market)`) gives each non-UK market its own session file.
+- A `Session` whose `market` differs from the client's is rejected with `MarketMismatchError` (constructor, `TokenStore` load, or `setSession`). Unstamped sessions are accepted and never stamped.
+- `slots.list` default dates (today … +6 days) are calendar days in `market.timeZone`.
+
 ## Auth: where the browser runs
 
 The library hard-depends on no browser. It just needs a `Session`. You decide where, and whether, a browser runs:
@@ -151,6 +162,7 @@ Everything thrown is a `BasketeerError` subclass:
 - `ApiKeyError` — the public `x-apikey` was rejected (`403 "Invalid Client"`). It rotates ~monthly; set `TESCO_API_KEY` or pass `{ apiKey }`. Never retryable.
 - `RateLimitedError` — `429`/`403`. The client stops rather than retry-storming; back off.
 - `AuthExpiredError` — the session couldn't be refreshed; re-authenticate.
+- `MarketMismatchError` — the session was minted on another market than the client's. Configuration error, never retryable.
 - `LineRejectedError` — Tesco rejected the line passed to `basket.add`/`set`/`remove` (never assume a write succeeded). The batch `basket.update` reports rejections on `.rejected` instead.
 - `ItemUnavailableError` — the SKU passed to `basket.add`/`set` is unavailable for the basket's slot/store (`isForSale` false). Tesco accepts it silently then drops it at checkout, so the client rolls the line back and throws this; affected SKUs are on `.skus`. The batch `basket.update` reports these on `.unavailable` instead.
 - `GraphQLRequestError` — a non-auth GraphQL error (full detail on `.errors`; the message is scrubbed).

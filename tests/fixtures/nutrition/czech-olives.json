@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Typical Values",
+    "value1": "na 100 g pevného podílu:",
+    "value2": null,
+    "value3": null
+  },
+  { "name": "Energetická hodnota", "value1": "669 kJ / 162 kcal", "value2": null, "value3": null },
+  { "name": "Tuky", "value1": "15 g", "value2": null, "value3": null },
+  { "name": "z toho nasycené mastné kyseliny", "value1": "2,7 g", "value2": null, "value3": null },
+  { "name": "Sacharidy", "value1": "4,1 g", "value2": null, "value3": null },
+  { "name": "z toho cukry", "value1": "0,2 g", "value2": null, "value3": null },
+  { "name": "Bílkoviny", "value1": "1,8 g", "value2": null, "value3": null },
+  { "name": "Sůl", "value1": "3,2 g", "value2": null, "value3": null }
+]

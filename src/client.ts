@@ -3,9 +3,11 @@ import {
   BasketeerError,
   ItemUnavailableError,
   LineRejectedError,
+  MarketMismatchError,
   NotFoundError,
 } from "./errors.js";
 import { GraphQLTransport } from "./graphql.js";
+import { checkoutUrl, type Market, type MarketCode, resolveMarket } from "./market.js";
 import type {
   Basket,
   BasketUpdateResult,
@@ -22,7 +24,6 @@ import type {
 } from "./models.js";
 import { filterByNutrition } from "./nutrition.js";
 import {
-  CHECKOUT_URL,
   FULFILMENT_TYPE,
   type FulfilmentType,
   MFE,
@@ -62,6 +63,11 @@ import { SessionManager } from "./session-manager.js";
 import type { TokenStore } from "./store/types.js";
 
 export interface BasketeerOptions {
+  /**
+   * Tesco storefront: a built-in market code (`"uk"`, `"cz"`) or a custom
+   * {@link Market}. Default `"uk"`. Sessions are market-scoped.
+   */
+  market?: MarketCode | Market;
   /** A ready-made session (e.g. harvested elsewhere). */
   session?: Session | null;
   /** Persists/loads the session. */
@@ -134,17 +140,28 @@ export interface Amendment {
 }
 
 export class Basketeer {
+  /** The storefront this client talks to. */
+  readonly market: Market;
   private readonly transport: GraphQLTransport;
   private readonly sessions: SessionManager;
   private _amendingOrderNo: string | null = null;
 
   constructor(opts: BasketeerOptions = {}) {
+    this.market = resolveMarket(opts.market);
+    const backendMarket = opts.authBackend?.market;
+    if (backendMarket && backendMarket.code !== this.market.code) {
+      throw new MarketMismatchError(
+        `The auth backend signs in to the "${backendMarket.code}" market but the client is configured for "${this.market.code}".`,
+      );
+    }
     this.sessions = new SessionManager({
       session: opts.session,
       backend: opts.authBackend,
       store: opts.store,
+      market: this.market,
     });
     this.transport = new GraphQLTransport({
+      market: this.market,
       apiKey: opts.apiKey,
       throttleMs: opts.throttleMs,
       fetchImpl: opts.fetchImpl,
@@ -521,7 +538,7 @@ export class Basketeer {
    * the basket and book a slot via this SDK, then complete payment at `url`.
    */
   async checkout(): Promise<{ basket: Basket; url: string }> {
-    return { basket: await this.getBasket(), url: CHECKOUT_URL };
+    return { basket: await this.getBasket(), url: checkoutUrl(this.market) };
   }
 
   // --- slots (requires auth) ------------------------------------------------
@@ -549,8 +566,8 @@ export class Basketeer {
       operationName: "DeliverySlots",
       query: DELIVERY_SLOTS,
       variables: {
-        start: opts.start ?? isoDate(0),
-        end: opts.end ?? isoDate(6),
+        start: opts.start ?? isoDate(0, this.market.timeZone),
+        end: opts.end ?? isoDate(6, this.market.timeZone),
         type: opts.type ?? FULFILMENT_TYPE.delivery,
       },
       mfeName: MFE.slots,
@@ -567,8 +584,8 @@ export class Basketeer {
       operationName: "CollectionSlots",
       query: COLLECTION_SLOTS,
       variables: {
-        start: opts.start ?? isoDate(0),
-        end: opts.end ?? isoDate(6),
+        start: opts.start ?? isoDate(0, this.market.timeZone),
+        end: opts.end ?? isoDate(6, this.market.timeZone),
         locationUuid: opts.locationUuid ?? null,
       },
       mfeName: MFE.slots,

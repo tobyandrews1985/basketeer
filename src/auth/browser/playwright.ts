@@ -1,6 +1,15 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { AuthExpiredError } from "../../errors.js";
+import {
+  groceriesUrl,
+  isMarketCookieDomain,
+  loginUrl,
+  type Market,
+  type MarketCode,
+  refreshUrl,
+  resolveMarket,
+} from "../../market.js";
 import type { Session } from "../../models.js";
 import { sessionFromCookies } from "../harvest.js";
 import type { AuthBackend, Credentials } from "../types.js";
@@ -10,8 +19,8 @@ import type { AuthBackend, Credentials } from "../types.js";
  *
  * A real Chrome satisfies Akamai's bot defenses natively, so we drive it to
  * log the user in once, then harvest the authenticated session — the
- * `OAuth.AccessToken` bearer, the `UUID` (customer-uuid), and the tesco.com
- * cookies. Every data-plane call afterwards is pure HTTP (see GraphQLTransport).
+ * `OAuth.AccessToken` bearer, the `UUID` (customer-uuid), and the market's
+ * Tesco cookies. Every data-plane call afterwards is pure HTTP (see GraphQLTransport).
  *
  * Uses the system Chrome channel and a persistent profile so the session presents
  * as an ordinary browser. The stealth shim sets `navigator.webdriver` to match a
@@ -22,25 +31,24 @@ import type { AuthBackend, Credentials } from "../types.js";
  * consumers that supply their own AuthBackend.
  */
 
-const LOGIN_URL = "https://www.tesco.com/account/login";
-const HOME_URL = "https://www.tesco.com/groceries/";
-// soft-refresh=false forces a rotation even while the current token is still
-// valid, so refresh() deterministically returns a fresh ~1h token. The endpoint
-// redirects to `from` once the new token is written.
-const REFRESH_URL =
-  "https://www.tesco.com/account/auth/en-GB/refresh-token?soft-refresh=false" +
-  "&from=https%3A%2F%2Fwww.tesco.com%2Fshop%2Fen-GB%2Flanding%2Fgroceries";
-
 const DEFAULT_PROFILE_DIR = join(homedir(), ".basketeer", "chrome-profile");
 
-// Runs before any page scripts; sets navigator properties to match a normal (non-automated) Chrome.
-const STEALTH_INIT = `() => {
+/**
+ * Runs before any page scripts; sets navigator properties to match a normal
+ * (non-automated) Chrome whose UI language is the market's.
+ */
+function stealthInit(market: Market): string {
+  const languages = JSON.stringify([market.language, market.language.split("-")[0]]);
+  return `() => {
   Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-  Object.defineProperty(navigator, 'languages', { get: () => ['en-GB', 'en'] });
+  Object.defineProperty(navigator, 'languages', { get: () => ${languages} });
   Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
 }`;
+}
 
 export interface BrowserAuthOptions {
+  /** Storefront to sign in to: a market code or a custom {@link Market}. Default UK. */
+  market?: MarketCode | Market;
   /** Persistent Chrome profile dir (keeps you logged in across runs). */
   profileDir?: string;
   /** Use the installed Google Chrome channel (recommended for Akamai). */
@@ -54,11 +62,13 @@ export interface BrowserAuthOptions {
 }
 
 export class BrowserAuthBackend implements AuthBackend {
+  readonly market: Market;
   private readonly profileDir: string;
   private readonly channel: string;
   private readonly headlessRefresh: boolean;
 
   constructor(opts: BrowserAuthOptions = {}) {
+    this.market = resolveMarket(opts.market);
     this.profileDir = opts.profileDir ?? DEFAULT_PROFILE_DIR;
     this.channel = opts.channel ?? "chrome";
     this.headlessRefresh = opts.headlessRefresh ?? false;
@@ -78,8 +88,8 @@ export class BrowserAuthBackend implements AuthBackend {
       channel: this.channel,
       headless: false,
       viewport: { width: 1280, height: 800 },
-      locale: "en-GB",
-      timezoneId: "Europe/London",
+      locale: this.market.language,
+      timezoneId: this.market.timeZone,
       args: [
         "--disable-blink-features=AutomationControlled",
         "--no-first-run",
@@ -88,20 +98,24 @@ export class BrowserAuthBackend implements AuthBackend {
       ignoreDefaultArgs: ["--enable-automation"],
     });
     try {
-      await ctx.addInitScript(STEALTH_INIT);
+      await ctx.addInitScript(stealthInit(this.market));
       const page = ctx.pages()[0] ?? (await ctx.newPage());
-      await page.goto(LOGIN_URL);
+      await page.goto(loginUrl(this.market));
 
       console.log(`\n${"=".repeat(70)}`);
-      console.log("TESCO LOGIN — a real Chrome window has opened.");
+      console.log(
+        `TESCO LOGIN (${this.market.code.toUpperCase()}) — a real Chrome window has opened.`,
+      );
       console.log("  1. Sign in normally (username, password, 2FA if asked).");
       console.log("  2. Wait until you can see your account / the groceries homepage.");
       console.log("  3. Return here and press Enter to harvest the session.");
       console.log("=".repeat(70));
       await waitForEnter("\n  >>> Press Enter once you are logged in <<<\n");
 
-      await page.goto(HOME_URL, { waitUntil: "domcontentloaded", timeout: 15_000 }).catch(() => {});
-      return sessionFromCookies(await ctx.cookies());
+      await page
+        .goto(groceriesUrl(this.market), { waitUntil: "domcontentloaded", timeout: 15_000 })
+        .catch(() => {});
+      return sessionFromCookies(await ctx.cookies(), { market: this.market });
     } finally {
       await ctx.close().catch(() => {});
     }
@@ -120,20 +134,22 @@ export class BrowserAuthBackend implements AuthBackend {
     const ctx = await chromium.launchPersistentContext(this.profileDir, {
       channel: this.channel,
       headless: this.headlessRefresh,
-      locale: "en-GB",
-      timezoneId: "Europe/London",
+      locale: this.market.language,
+      timezoneId: this.market.timeZone,
       args: ["--disable-blink-features=AutomationControlled"],
       ignoreDefaultArgs: ["--enable-automation"],
     });
     try {
-      await ctx.addInitScript(STEALTH_INIT);
+      await ctx.addInitScript(stealthInit(this.market));
       const page = ctx.pages()[0] ?? (await ctx.newPage());
       const tokenNow = async (): Promise<string | undefined> =>
-        (await ctx.cookies()).find((c) => c.name === "OAuth.AccessToken")?.value;
+        (await ctx.cookies()).find(
+          (c) => c.name === "OAuth.AccessToken" && isMarketCookieDomain(this.market, c.domain),
+        )?.value;
 
       const before = await tokenNow();
       await page
-        .goto(REFRESH_URL, { waitUntil: "domcontentloaded", timeout: 30_000 })
+        .goto(refreshUrl(this.market), { waitUntil: "domcontentloaded", timeout: 30_000 })
         .catch(() => {});
 
       // Wait for the refresh to land: token rotates AND we leave the auth path.
@@ -146,7 +162,7 @@ export class BrowserAuthBackend implements AuthBackend {
         if (token && token !== before && !path.includes("/account/auth")) break;
         await new Promise((r) => setTimeout(r, 1000));
       }
-      return sessionFromCookies(await ctx.cookies());
+      return sessionFromCookies(await ctx.cookies(), { market: this.market });
     } finally {
       await ctx.close().catch(() => {});
     }

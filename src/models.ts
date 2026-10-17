@@ -214,7 +214,7 @@ export interface OrderHistoryPage {
 /**
  * An authenticated session. For the browser-minted hybrid (v1), `accessToken`
  * is the harvested `OAuth.AccessToken` bearer and `customerUuid` is the `UUID`
- * cookie. `cookies` carries the tesco.com cookies replayed on writes (auth +
+ * cookie. `cookies` carries the market's Tesco cookies replayed on writes (auth +
  * Akamai bot-mitigation cookies). Renewal is performed by the AuthBackend.
  */
 export interface Session {
@@ -223,6 +223,11 @@ export interface Session {
   cookies: Record<string, string>;
   /** epoch ms; parsed from the JWT `exp` when available, else undefined. */
   accessTokenExpiry?: number;
+  /**
+   * Code of the market the session was minted on (`"uk"`, `"cz"`). Absent on
+   * sessions saved before markets existed; those are accepted by any client.
+   */
+  market?: string;
 }
 
 export type NutritionBasis = "per_100g" | "per_100ml" | "per_serving" | "unknown";

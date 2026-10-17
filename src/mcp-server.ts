@@ -7,8 +7,10 @@
  *
  * The client is built with a `FileTokenStore` + `BrowserAuthBackend`:
  *   - Reads (search/product/favourites/slots/orders) work anonymously.
- *   - Authed ops reuse whatever session was saved to
- *     `~/.basketeer/session.json` (mint one with the SDK's login flow).
+ *   - Authed ops reuse whatever session was saved for the market
+ *     (`~/.basketeer/session.json` for the UK, `session.<code>.json` otherwise;
+ *     mint one with `basketeer login`).
+ *   - The storefront comes from the `TESCO_MARKET` env var (`uk` default, `cz`).
  *
  * Import safety: building the client (which reads the session file from disk)
  * and connecting the transport happen ONLY when this file is run as the entry
@@ -30,6 +32,7 @@ import { BrowserAuthBackend } from "./auth/browser/playwright.js";
 import type { Basket, NutritionFilter } from "./index.js";
 import { Basketeer, BasketeerError, FileTokenStore } from "./index.js";
 import { isMainModule } from "./is-main.js";
+import { type Market, resolveMarket } from "./market.js";
 import { PRODUCT_FIELDS, projectResults, SEARCH_RESULT_FIELDS } from "./select.js";
 
 /**
@@ -94,7 +97,15 @@ export function confirmToken(parts: string): string {
  * Pure: no filesystem/auth/transport side effects — safe to call from a test.
  */
 export function buildServer(client: Basketeer): McpServer {
-  const server = new McpServer({ name: "basketeer", version: "0.1.1" });
+  const { market } = client;
+  const server = new McpServer(
+    { name: "basketeer", version: "0.1.1" },
+    {
+      instructions:
+        `Connected to the Tesco ${market.code.toUpperCase()} storefront (${market.shopOrigin}). ` +
+        `Prices are in ${market.currency}; search in the storefront's language (${market.language}).`,
+    },
+  );
 
   // --- reads (anonymous OK) -------------------------------------------------
 
@@ -364,15 +375,23 @@ export function buildServer(client: Basketeer): McpServer {
 
 // --- start ------------------------------------------------------------------
 
-// Only build the client (which reads ~/.basketeer/session.json) and attach the
+// Only build the client (which reads the market's session file) and attach the
 // stdio transport when run as a binary, so the module can be imported (e.g. by a
 // smoke test) without any filesystem/auth side effects or starting the server.
 if (isMainModule(import.meta.url)) {
-  const store = new FileTokenStore();
+  let market: Market;
+  try {
+    market = resolveMarket(process.env.TESCO_MARKET);
+  } catch (err) {
+    process.stderr.write(`basketeer-mcp: TESCO_MARKET: ${(err as Error).message}\n`);
+    process.exit(1);
+  }
+  const store = new FileTokenStore({ market });
   const client = new Basketeer({
+    market,
     session: await store.load(),
     store,
-    authBackend: new BrowserAuthBackend(),
+    authBackend: new BrowserAuthBackend({ market }),
   });
   const server = buildServer(client);
   await server.connect(new StdioServerTransport());
