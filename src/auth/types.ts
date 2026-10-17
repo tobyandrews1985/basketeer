@@ -1,3 +1,4 @@
+import type { Market } from "../market.js";
 import type { Session } from "../models.js";
 
 /** Optional 2FA/OTP callback, supplied by the consumer if Tesco demands a code. */
@@ -17,6 +18,11 @@ export interface Credentials {
  * the browser backend collects them in the browser window, not over the wire.
  */
 export interface AuthBackend {
+  /**
+   * Market the backend signs in to, when it is market-bound. The client
+   * rejects a backend for another market before any interactive sign-in.
+   */
+  readonly market?: Market;
   login(credentials?: Credentials): Promise<Session>;
   refresh(session: Session): Promise<Session>;
 }

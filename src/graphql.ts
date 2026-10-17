@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { ApiKeyError, AuthExpiredError, GraphQLRequestError, RateLimitedError } from "./errors.js";
+import { DEFAULT_MARKET, type Market } from "./market.js";
 import { ENDPOINT, PUBLIC_API_KEY } from "./operations.js";
 
 const DEFAULT_UA =
@@ -23,6 +24,8 @@ export interface GraphQLOp {
 
 export interface TransportOptions {
   endpoint?: string;
+  /** Storefront the gateway routes requests to. Default UK. */
+  market?: Market;
   apiKey?: string;
   userAgent?: string;
   /** Minimum gap between requests in ms (polite usage). Default 1000. */
@@ -62,6 +65,7 @@ function uuid(): string {
  */
 export class GraphQLTransport {
   private readonly endpoint: string;
+  private readonly market: Market;
   private readonly apiKey: string;
   private readonly userAgent: string;
   private readonly throttleMs: number;
@@ -74,6 +78,7 @@ export class GraphQLTransport {
 
   constructor(opts: TransportOptions = {}) {
     this.endpoint = opts.endpoint ?? ENDPOINT;
+    this.market = opts.market ?? DEFAULT_MARKET;
     this.apiKey = opts.apiKey ?? process.env.TESCO_API_KEY ?? PUBLIC_API_KEY;
     this.userAgent = opts.userAgent ?? DEFAULT_UA;
     this.throttleMs = opts.throttleMs ?? 1000;
@@ -109,10 +114,10 @@ export class GraphQLTransport {
       "user-agent": this.userAgent,
       accept: "application/json",
       "content-type": "application/json",
-      "accept-language": "en-GB",
+      "accept-language": this.market.language,
       "x-apikey": this.apiKey,
-      region: "UK",
-      language: "en-GB",
+      region: this.market.region,
+      language: this.market.language,
       traceid: `${uuid()}:${uuid()}`,
       trkid: uuid(),
     };

@@ -4,10 +4,16 @@ startCommand:
   type: stdio
   configSchema:
     type: object
-    properties: {}
+    properties:
+      market:
+        type: string
+        enum: ["uk", "cz"]
+        default: "uk"
+        description: Tesco storefront (UK or Czech Republic).
     additionalProperties: false
   commandFunction: |-
     (config) => ({
       command: "npx",
-      args: ["-y", "-p", "basketeer", "basketeer-mcp"]
+      args: ["-y", "-p", "basketeer", "basketeer-mcp"],
+      env: { TESCO_MARKET: config.market ?? "uk" }
     })

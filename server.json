@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
   "name": "io.github.tobyandrews1985/basketeer",
-  "description": "Personal UK Tesco grocery account over MCP: search, basket, slots, orders, and on-pack nutrition.",
+  "description": "Personal Tesco grocery account (UK, CZ) over MCP: search, basket, slots, orders, and nutrition.",
   "repository": {
     "url": "https://github.com/tobyandrews1985/basketeer",
     "source": "github"
@@ -16,7 +16,23 @@
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"
-      }
+      },
+      "environmentVariables": [
+        {
+          "name": "TESCO_MARKET",
+          "description": "Tesco storefront: uk (default) or cz",
+          "isRequired": false,
+          "default": "uk",
+          "format": "string"
+        },
+        {
+          "name": "TESCO_AUTH",
+          "description": "Session renewal: browser (default) or http (browserless; Czech storefront)",
+          "isRequired": false,
+          "default": "browser",
+          "format": "string"
+        }
+      ]
     }
   ]
 }
