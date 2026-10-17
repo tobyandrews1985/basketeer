@@ -1,6 +1,8 @@
 import type { AuthBackend } from "./auth/types.js";
+import { MarketMismatchError } from "./errors.js";
 import type { AuthHeaders } from "./graphql.js";
 import { jwtExpiryMs } from "./jwt.js";
+import { DEFAULT_MARKET, type Market } from "./market.js";
 import type { Session } from "./models.js";
 import type { TokenStore } from "./store/types.js";
 
@@ -8,6 +10,8 @@ export interface SessionManagerOptions {
   session?: Session | null;
   backend?: AuthBackend;
   store?: TokenStore;
+  /** Market the client talks to; sessions from another market are rejected. */
+  market?: Market;
 }
 
 /**
@@ -19,16 +23,18 @@ export class SessionManager {
   private session: Session | null;
   private readonly backend?: AuthBackend;
   private readonly store?: TokenStore;
+  private readonly market: Market;
 
   constructor(opts: SessionManagerOptions = {}) {
-    this.session = opts.session ?? null;
+    this.market = opts.market ?? DEFAULT_MARKET;
+    this.session = this.checkMarket(opts.session ?? null);
     this.backend = opts.backend;
     this.store = opts.store;
   }
 
   /** Load any persisted session from the store into the manager. */
   async load(): Promise<Session | null> {
-    if (this.store) this.session = await this.store.load();
+    if (this.store) this.session = this.checkMarket(await this.store.load());
     return this.session;
   }
 
@@ -37,6 +43,7 @@ export class SessionManager {
   }
 
   async setSession(session: Session): Promise<void> {
+    this.checkMarket(session);
     // Clone so we never mutate the caller's object (it may be shared/frozen).
     const stored: Session = {
       ...session,
@@ -76,8 +83,16 @@ export class SessionManager {
 
   async login(...args: Parameters<AuthBackend["login"]>): Promise<Session> {
     if (!this.backend) throw new Error("No AuthBackend configured — cannot login.");
-    const session = await this.backend.login(...args);
-    await this.setSession(session);
+    await this.setSession(await this.backend.login(...args));
+    return this.session!;
+  }
+
+  private checkMarket(session: Session | null): Session | null {
+    if (session?.market !== undefined && session.market !== this.market.code) {
+      throw new MarketMismatchError(
+        `Session was minted on the "${session.market}" market but the client is configured for "${this.market.code}".`,
+      );
+    }
     return session;
   }
 }

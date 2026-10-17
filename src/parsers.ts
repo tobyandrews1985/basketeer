@@ -225,11 +225,21 @@ export function parseOrder(v: unknown): Order {
   };
 }
 
-/** YYYY-MM-DD `offsetDays` from today, in LOCAL time (Tesco slot dates are UK-local). */
-export function isoDate(offsetDays = 0): string {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${m}-${day}`;
+/**
+ * YYYY-MM-DD `offsetDays` from today. Slot dates are local to the storefront,
+ * so pass the market's `timeZone`; without one the process's local time is used.
+ */
+export function isoDate(offsetDays = 0, timeZone?: string): string {
+  // Today's calendar date in the zone, then pure calendar arithmetic in UTC so
+  // DST transitions cannot shift the day.
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(new Date());
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((p) => p.type === type)?.value);
+  const date = new Date(Date.UTC(part("year"), part("month") - 1, part("day") + offsetDays));
+  return date.toISOString().slice(0, 10);
 }

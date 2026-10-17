@@ -2,6 +2,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { describe, expect, it } from "vitest";
 import type { Basketeer } from "../src/index.js";
+import { MARKETS } from "../src/market.js";
 import { buildServer, confirmToken } from "../src/mcp-server.js";
 
 describe("confirmToken", () => {
@@ -41,6 +42,7 @@ describe("basket mutation receipts (issue #9)", () => {
 
   async function callTool(name: string, args: Record<string, unknown>) {
     const stub = {
+      market: MARKETS.uk,
       basket: {
         get: async () => basket,
         set: async () => basket,
@@ -106,7 +108,7 @@ describe("basketeer_search select", () => {
   };
 
   async function callSearch(args: Record<string, unknown>) {
-    const stub = { search: async () => page } as unknown as Basketeer;
+    const stub = { market: MARKETS.uk, search: async () => page } as unknown as Basketeer;
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     await buildServer(stub).connect(serverTransport);
     const client = new Client({ name: "test", version: "0.0.0" });
@@ -140,5 +142,20 @@ describe("basketeer_search select", () => {
     const { isError, body } = await callSearch({ query: "milk", select: ["cost"] });
     expect(isError).toBe(true);
     expect(body.message).toMatch(/unknown select field "cost".*price/);
+  });
+});
+
+describe("server instructions", () => {
+  it("tell the model which storefront, currency and language it is on", async () => {
+    const stub = { market: MARKETS.cz } as unknown as Basketeer;
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await buildServer(stub).connect(serverTransport);
+    const client = new Client({ name: "test", version: "0" });
+    await client.connect(clientTransport);
+    const instructions = client.getInstructions() ?? "";
+    expect(instructions).toContain("CZ");
+    expect(instructions).toContain("CZK");
+    expect(instructions).toContain("cs-CZ");
+    await client.close();
   });
 });
