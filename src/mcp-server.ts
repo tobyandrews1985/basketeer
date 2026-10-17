@@ -5,12 +5,13 @@
  * Exposes the SDK as Model Context Protocol tools so an MCP agent (Claude
  * Desktop, etc.) can browse the catalogue, fill a basket, and prepare checkout.
  *
- * The client is built with a `FileTokenStore` + `BrowserAuthBackend`:
+ * The client is built with a `FileTokenStore` + an `AuthBackend` (`TESCO_AUTH`):
  *   - Reads (search/product/favourites/slots/orders) work anonymously.
  *   - Authed ops reuse whatever session was saved for the market
  *     (`~/.basketeer/session.json` for the UK, `session.<code>.json` otherwise;
  *     mint one with `basketeer login`).
- *   - The storefront comes from the `TESCO_MARKET` env var (`uk` default, `cz`).
+ *   - The storefront comes from the `TESCO_MARKET` env var (`uk` default, `cz`);
+ *     `TESCO_AUTH` picks session renewal (`browser` default, `http` browserless).
  *
  * Import safety: building the client (which reads the session file from disk)
  * and connecting the transport happen ONLY when this file is run as the entry
@@ -28,7 +29,7 @@ import { createHash } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { BrowserAuthBackend } from "./auth/browser/playwright.js";
+import { type AuthBackendKind, createAuthBackend, parseAuthBackendKind } from "./auth/backends.js";
 import type { Basket, NutritionFilter } from "./index.js";
 import { Basketeer, BasketeerError, FileTokenStore } from "./index.js";
 import { isMainModule } from "./is-main.js";
@@ -318,10 +319,12 @@ export function buildServer(client: Basketeer): McpServer {
 // smoke test) without any filesystem/auth side effects or starting the server.
 if (isMainModule(import.meta.url)) {
   let market: Market;
+  let auth: AuthBackendKind;
   try {
     market = resolveMarket(process.env.TESCO_MARKET);
+    auth = parseAuthBackendKind(process.env.TESCO_AUTH ?? "browser");
   } catch (err) {
-    process.stderr.write(`basketeer-mcp: TESCO_MARKET: ${(err as Error).message}\n`);
+    process.stderr.write(`basketeer-mcp: ${(err as Error).message}\n`);
     process.exit(1);
   }
   const store = new FileTokenStore({ market });
@@ -329,7 +332,7 @@ if (isMainModule(import.meta.url)) {
     market,
     session: await store.load(),
     store,
-    authBackend: new BrowserAuthBackend({ market }),
+    authBackend: createAuthBackend(auth, market),
   });
   const server = buildServer(client);
   await server.connect(new StdioServerTransport());

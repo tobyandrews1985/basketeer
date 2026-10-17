@@ -178,6 +178,8 @@ const store = new FileTokenStore({ market: "cz" });                 // ~/.basket
 
 The CLI takes `--market cz`; the CLI and the MCP server both read `TESCO_MARKET`. Sessions are market-scoped: `sessionFromCookies(cookies, { market })` keeps only that market's cookies (one browser profile can be signed in to several storefronts) and stamps the session, and a client refuses a session or an auth backend from another market with `MarketMismatchError` (before any interactive sign-in). Unstamped sessions — saved before markets existed, or harvested without `market` — are accepted as-is. Delivery-slot date ranges are computed in the market's time zone, and the MCP server tells the model which storefront, currency, and language it is on. Nutrition parsing understands English and Czech table labels.
 
+On the Czech storefront the token refresh endpoint also accepts a plain HTTP client from a residential connection, so `HttpAuthBackend` can keep a session alive for the refresh token's lifetime (~30 days) with no browser on the host: sign in once anywhere (or `sessionFromCookies`), copy the session file, and run with `TESCO_AUTH=http` (CLI `--auth http`). The UK storefront rejects browserless refresh; keep the default `browser` backend there.
+
 Another storefront on the same gateway can be tried by passing your own `Market` object (`region`, `language`, hosts, cookie domain, time zone, currency).
 
 ## Auth, you choose where the browser runs

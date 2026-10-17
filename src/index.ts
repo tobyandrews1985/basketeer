@@ -2,6 +2,8 @@
 // internal modules (transport, queries, parsers, session-manager) are not.
 
 export { keepCookie, sessionFromCookies } from "./auth/harvest.js";
+export type { HttpAuthOptions } from "./auth/http.js";
+export { HttpAuthBackend } from "./auth/http.js";
 // Auth seam
 export type { AuthBackend, Credentials, OtpProvider } from "./auth/types.js";
 export type { Amendment, BasketeerOptions, BasketItemInput } from "./client.js";
