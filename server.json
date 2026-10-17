@@ -24,6 +24,13 @@
           "isRequired": false,
           "default": "uk",
           "format": "string"
+        },
+        {
+          "name": "TESCO_AUTH",
+          "description": "Session renewal: browser (default) or http (browserless; Czech storefront)",
+          "isRequired": false,
+          "default": "browser",
+          "format": "string"
         }
       ]
     }

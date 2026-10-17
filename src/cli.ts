@@ -10,11 +10,12 @@
  * hands back a payment URL — a human completes payment in a browser.
  *
  * The storefront comes from `--market <code>` or the `TESCO_MARKET` env var
- * (default `uk`); each market keeps its own session file.
+ * (default `uk`); each market keeps its own session file. `--auth` /
+ * `TESCO_AUTH` picks how sessions are renewed (`browser` default, `http`).
  */
 
 import { Command, InvalidArgumentError, Option } from "commander";
-import { BrowserAuthBackend } from "./auth/browser/playwright.js";
+import { type AuthBackendKind, createAuthBackend, parseAuthBackendKind } from "./auth/backends.js";
 import type { NutritionFilter } from "./index.js";
 import { Basketeer, BasketeerError, FileTokenStore } from "./index.js";
 import { isMainModule } from "./is-main.js";
@@ -49,6 +50,15 @@ export function marketArg(value: string): Market {
   }
 }
 
+/** commander parser: a known auth backend kind, else a usage error. */
+export function authArg(value: string): AuthBackendKind {
+  try {
+    return parseAuthBackendKind(value);
+  } catch (err) {
+    throw new InvalidArgumentError((err as Error).message);
+  }
+}
+
 const program = new Command();
 program
   .name("basketeer")
@@ -58,6 +68,12 @@ program
       .env("TESCO_MARKET")
       .argParser(marketArg)
       .default(DEFAULT_MARKET, "uk"),
+  )
+  .addOption(
+    new Option("--auth <backend>", "session renewal: browser (Chrome) or http (browserless)")
+      .env("TESCO_AUTH")
+      .argParser(authArg)
+      .default("browser"),
   )
   .showHelpAfterError();
 
@@ -72,7 +88,7 @@ function sessionOptions() {
   return {
     market: m,
     store: new FileTokenStore({ market: m }),
-    authBackend: new BrowserAuthBackend({ market: m }),
+    authBackend: createAuthBackend(program.opts<{ auth: AuthBackendKind }>().auth, m),
   };
 }
 

@@ -1,6 +1,6 @@
 import { InvalidArgumentError } from "commander";
 import { describe, expect, it } from "vitest";
-import { marketArg, nonNegativeInt, nonNegativeNumber } from "../src/cli.js";
+import { authArg, marketArg, nonNegativeInt, nonNegativeNumber } from "../src/cli.js";
 import { MARKETS } from "../src/market.js";
 
 describe("cli numeric parsers", () => {
@@ -23,5 +23,13 @@ describe("cli market parser", () => {
     expect(marketArg("cz")).toBe(MARKETS.cz);
     expect(marketArg("UK")).toBe(MARKETS.uk);
     expect(() => marketArg("de")).toThrow(InvalidArgumentError);
+  });
+});
+
+describe("cli auth parser", () => {
+  it("authArg accepts browser/http, rejects others as a usage error", () => {
+    expect(authArg("http")).toBe("http");
+    expect(authArg("Browser")).toBe("browser");
+    expect(() => authArg("oauth")).toThrow(InvalidArgumentError);
   });
 });

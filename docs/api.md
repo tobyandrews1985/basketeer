@@ -137,6 +137,7 @@ This is a client-side heuristic, not a Tesco "orders after" facility. Custom `co
 - `BrowserAuthBackend({ market })` signs in and refreshes on the market's hosts with its locale and time zone. `AuthBackend.market` is optional; when set, a client for another market throws `MarketMismatchError` at construction, before any sign-in.
 - `sessionFromCookies(cookies, { market })` drops cookies whose `domain` belongs to another market and stamps `session.market`; `new FileTokenStore({ market })` (or `defaultSessionPath(market)`) gives each non-UK market its own session file.
 - A `Session` whose `market` differs from the client's is rejected with `MarketMismatchError` (constructor, `TokenStore` load, or `setSession`). Unstamped sessions are accepted and never stamped.
+- `HttpAuthBackend({ market })` renews a session over plain HTTP by replaying its cookies to `refreshUrl(market)` (verified on `cz`; the UK rejects it). `login()` is unsupported. The CLI (`--auth`) and MCP server read `TESCO_AUTH=browser|http`.
 - `slots.list` default dates (today … +6 days) are calendar days in `market.timeZone`.
 
 ## Auth: where the browser runs
@@ -149,6 +150,7 @@ The library hard-depends on no browser. It just needs a `Session`. You decide wh
 | Long-running container | real Chrome under Xvfb (no monitor) | `BrowserAuthBackend` + Xvfb |
 | Serverless / cloud agent | a hosted browser on a **residential** IP | a custom `AuthBackend`, or bring your own session |
 | You harvest the session yourself | wherever you like | `sessionFromCookies(cookies)` |
+| Headless host, Czech storefront | nowhere after the first sign-in | `HttpAuthBackend({ market: "cz" })` renews over plain HTTP (`TESCO_AUTH=http`) |
 
 Implement your own backend with the two-method `AuthBackend` (`login`, `refresh`) and three-method `TokenStore` (`load`, `save`, `clear`). `FileTokenStore` and `MemoryTokenStore` ship in the box.
 
