@@ -117,15 +117,12 @@ export function parseNutrition(rows: unknown[]): Nutrition | null {
     const unitInName = name.match(UNIT_IN_NAME)?.[1]?.toLowerCase() ?? null;
     const baseName = unitInName ? name.replace(UNIT_IN_NAME, "").trim() : name;
 
-    if (/^energy/i.test(baseName) && unitInName && value1 && !/kj|kcal/i.test(value1)) {
-      if (unitInName === "kcal") macros.energyKcal = num(value1);
-      if (unitInName === "kj") macros.energyKj = num(value1);
-      continue;
-    }
-
-    // Energy (inline "486kJ / 115kcal" or split "257 kJ/")
-    if (/^energy/i.test(name)) {
-      if (value1) {
+    // Energy: unit in the name, inline "486kJ / 115kcal", or split "257 kJ/"
+    if (/^energy/i.test(baseName)) {
+      if (value1 && unitInName && !/kj|kcal/i.test(value1)) {
+        if (unitInName === "kcal") macros.energyKcal = num(value1);
+        if (unitInName === "kj") macros.energyKj = num(value1);
+      } else if (value1) {
         const kj = value1.match(/(\d+(?:\.\d+)?)\s*kj/i);
         const kcal = value1.match(/(\d+(?:\.\d+)?)\s*kcal/i);
         if (kj) macros.energyKj = parseFloat(kj[1] ?? "0");
