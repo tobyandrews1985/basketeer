@@ -73,6 +73,23 @@ describe("parseNutrition", () => {
     expect(microNames).not.toContain("Salt equivalent");
     expect(microNames).not.toContain("Total Carbohydrate");
   });
+
+  it("reads units from the row name when values are bare numbers (unit-in-name fixture)", () => {
+    const n = parseNutrition(fixture("unit-in-name.json"))!;
+    expect(n.basis).toBe("per_100ml");
+    expect(n.macros).toEqual({
+      energyKj: 251,
+      energyKcal: 60,
+      fat: 3.5,
+      saturates: 2.3,
+      carbs: 4.7,
+      sugars: 4.7,
+      fibre: null,
+      protein: 3.4,
+      salt: 0.1,
+    });
+    expect(n.micros).toEqual([{ name: "Calcium", amount: 120, unit: "mg", nrvPercent: 15 }]);
+  });
 });
 
 type Basis = "per_100g" | "per_100ml";
