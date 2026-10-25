@@ -90,6 +90,23 @@ describe("parseNutrition", () => {
     });
     expect(n.micros).toEqual([{ name: "Calcium", amount: 120, unit: "mg", nrvPercent: 15 }]);
   });
+
+  it("normalizes label variants and a split NRV row (label-quirks fixture)", () => {
+    const n = parseNutrition(fixture("label-quirks.json"))!;
+    expect(n.basis).toBe("per_100g");
+    expect(n.macros).toEqual({
+      energyKj: 789,
+      energyKcal: 190,
+      fat: 16,
+      saturates: 10,
+      carbs: 3.3,
+      sugars: 3.3,
+      fibre: null,
+      protein: 7.8,
+      salt: 0.8,
+    });
+    expect(n.micros).toEqual([{ name: "Calcium", amount: 124, unit: "mg", nrvPercent: 15.5 }]);
+  });
 });
 
 type Basis = "per_100g" | "per_100ml";
