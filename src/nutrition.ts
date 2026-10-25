@@ -68,6 +68,9 @@ const MACRO_LABELS: Record<string, keyof Macros> = {
   "salt equivalent": "salt",
 };
 
+/** Trailing unit in a row name: "Fat (g)", "Energy (kcal)", "Calcium (mg)". */
+const UNIT_IN_NAME = /\s*\(\s*(kj|kcal|g|mg|µg|μg)\s*\)\s*$/i;
+
 function isFootnote(name: string, value: string | null): boolean {
   const n = name.trim();
   if (n.startsWith("*")) return true;
@@ -110,6 +113,16 @@ export function parseNutrition(rows: unknown[]): Nutrition | null {
       continue;
     }
 
+    // Unit in the row name with a bare-number value: "Fat (g)" -> "3.0", "Energy (kcal)" -> "60".
+    const unitInName = name.match(UNIT_IN_NAME)?.[1]?.toLowerCase() ?? null;
+    const baseName = unitInName ? name.replace(UNIT_IN_NAME, "").trim() : name;
+
+    if (/^energy/i.test(baseName) && unitInName && value1 && !/kj|kcal/i.test(value1)) {
+      if (unitInName === "kcal") macros.energyKcal = num(value1);
+      if (unitInName === "kj") macros.energyKj = num(value1);
+      continue;
+    }
+
     // Energy (inline "486kJ / 115kcal" or split "257 kJ/")
     if (/^energy/i.test(name)) {
       if (value1) {
@@ -122,9 +135,9 @@ export function parseNutrition(rows: unknown[]): Nutrition | null {
       continue;
     }
 
-    if (isFootnote(name, value1)) continue;
+    if (isFootnote(baseName, value1)) continue;
 
-    const key = MACRO_LABELS[name.toLowerCase()];
+    const key = MACRO_LABELS[baseName.toLowerCase()];
     if (key) {
       macros[key] = num(value1);
       continue;
@@ -132,7 +145,12 @@ export function parseNutrition(rows: unknown[]): Nutrition | null {
 
     // Anything else with a value is a micronutrient.
     if (value1) {
-      micros.push({ name, amount: num(value1), unit: unitOf(value1), nrvPercent: nrvOf(value1) });
+      micros.push({
+        name: baseName,
+        amount: num(value1),
+        unit: unitOf(value1) ?? unitInName,
+        nrvPercent: nrvOf(value1),
+      });
     }
   }
 

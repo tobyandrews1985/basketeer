@@ -1,0 +1,12 @@
+[
+  { "name": "Typical Values", "value1": "Per 100ml", "value2": null, "value3": null },
+  { "name": "Energy (kJ)", "value1": "251", "value2": null, "value3": null },
+  { "name": "Energy (kcal)", "value1": "60", "value2": null, "value3": null },
+  { "name": "Fat (g)", "value1": "3.5", "value2": null, "value3": null },
+  { "name": "of which saturates (g)", "value1": "2.3", "value2": null, "value3": null },
+  { "name": "Carbohydrate (g)", "value1": "4.7", "value2": null, "value3": null },
+  { "name": "of which sugars (g)", "value1": "4.7", "value2": null, "value3": null },
+  { "name": "Protein (g)", "value1": "3.4", "value2": null, "value3": null },
+  { "name": "Salt (g)", "value1": "0.10", "value2": null, "value3": null },
+  { "name": "Calcium (mg)", "value1": "120 (15%)", "value2": null, "value3": null }
+]
