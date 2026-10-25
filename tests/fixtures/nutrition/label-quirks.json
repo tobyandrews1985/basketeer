@@ -1,0 +1,14 @@
+[
+  { "name": "Typical Values", "value1": "Per 100g:", "value2": null, "value3": null },
+  { "name": "Energy", "value1": "789kJ/190kcal", "value2": null, "value3": null },
+  { "name": "Total Fat:", "value1": "16g", "value2": null, "value3": null },
+  { "name": "(of which saturates", "value1": "10g)", "value2": null, "value3": null },
+  { "name": "Carbohydrates", "value1": "3,3 g", "value2": null, "value3": null },
+  { "name": "- Sugars", "value1": "3.3g)", "value2": null, "value3": null },
+  { "name": "Protein g", "value1": "7.8", "value2": null, "value3": null },
+  { "name": "Salt*", "value1": "0.8g", "value2": null, "value3": null },
+  { "name": "Calcium", "value1": "124mg", "value2": null, "value3": null },
+  { "name": "-", "value1": "(15.5% RI*)", "value2": null, "value3": null },
+  { "name": "5 Servings", "value1": "-", "value2": null, "value3": null },
+  { "name": "*RI = Reference Intake", "value1": "-", "value2": null, "value3": null }
+]

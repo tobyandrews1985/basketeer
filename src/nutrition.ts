@@ -55,13 +55,18 @@ function basisFromHeader(v: string): NutritionBasis {
 
 const MACRO_LABELS: Record<string, keyof Macros> = {
   fat: "fat",
+  "total fat": "fat",
   saturates: "saturates",
   "of which saturates": "saturates",
+  "saturated fat": "saturates",
+  "of which saturated fat": "saturates",
   carbohydrate: "carbs",
+  carbohydrates: "carbs",
   "available carbohydrate": "carbs",
   "total carbohydrate": "carbs",
   sugars: "sugars",
   "of which sugars": "sugars",
+  "total sugars": "sugars",
   fibre: "fibre",
   protein: "protein",
   salt: "salt",
@@ -71,13 +76,33 @@ const MACRO_LABELS: Record<string, keyof Macros> = {
 /** Trailing unit in a row name: "Fat (g)", "Energy (kcal)", "Calcium (mg)". */
 const UNIT_IN_NAME = /\s*\(\s*(kj|kcal|g|mg|µg|μg)\s*\)\s*$/i;
 
+/** Drop a leading dash or unbalanced paren: "- Saturates" / "(of which saturates". */
+function cleanName(name: string): string {
+  return name
+    .trim()
+    .replace(/^-\s*(?=[a-z])/i, "")
+    .replace(/^\((?![^(]*\))\s*/, "");
+}
+
+/** Lookup key for a row label: "(of which: sugars*)" / "Protein g" -> "of which sugars" / "protein". */
+function labelKey(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[*†:,]+/g, " ")
+    .trim()
+    .replace(/(\s+|\s*\()(g|mg|µg|μg)\)?$/, "")
+    .replace(/^\((.*)\)$/, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function isFootnote(name: string, value: string | null): boolean {
   const n = name.trim();
   if (n.startsWith("*")) return true;
   if (/^of which$/i.test(n)) return true;
   if (/^as sold$/i.test(n)) return true;
   if (/reference intake|nutrient reference value/i.test(n)) return true;
-  const known = !!MACRO_LABELS[n.toLowerCase()] || /^energy/i.test(n);
+  const known = !!MACRO_LABELS[labelKey(n)] || /^energy/i.test(n);
   if (!known && (value === "-" || value === null || value === "")) return true;
   return false;
 }
@@ -92,7 +117,7 @@ export function parseNutrition(rows: unknown[]): Nutrition | null {
 
   for (const r of rows) {
     const row = (r ?? {}) as { name?: unknown; value1?: unknown };
-    const name = typeof row.name === "string" ? row.name.trim() : "";
+    const name = typeof row.name === "string" ? cleanName(row.name) : "";
     // Normalize a decimal comma so the energy kJ/kcal regexes (and num/nrvOf) see "1.5", not "1".
     const value1 = typeof row.value1 === "string" ? deComma(row.value1.trim()) : null;
     if (!name) continue;
@@ -132,9 +157,16 @@ export function parseNutrition(rows: unknown[]): Nutrition | null {
       continue;
     }
 
+    // NRV on its own row named "-": "Calcium" => "124mg", then "-" => "(15.5% RI*)".
+    if (name === "-") {
+      const prev = micros[micros.length - 1];
+      if (prev && prev.nrvPercent == null && value1) prev.nrvPercent = nrvOf(value1);
+      continue;
+    }
+
     if (isFootnote(baseName, value1)) continue;
 
-    const key = MACRO_LABELS[baseName.toLowerCase()];
+    const key = MACRO_LABELS[labelKey(baseName)];
     if (key) {
       macros[key] = num(value1);
       continue;
