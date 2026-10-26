@@ -82,13 +82,17 @@ function market(): Market {
   return program.opts<{ market: Market }>().market;
 }
 
-/** Session-persisting options for the selected market. */
-function sessionOptions() {
+/**
+ * Session-persisting options for the selected market. `auth` overrides the
+ * `--auth` backend; sign-in always passes `"browser"`, since `--auth` only
+ * chooses how an existing session is renewed.
+ */
+function sessionOptions(auth = program.opts<{ auth: AuthBackendKind }>().auth) {
   const m = market();
   return {
     market: m,
     store: new FileTokenStore({ market: m }),
-    authBackend: createAuthBackend(program.opts<{ auth: AuthBackendKind }>().auth, m),
+    authBackend: createAuthBackend(auth, m),
   };
 }
 
@@ -108,7 +112,7 @@ program
   .command("login")
   .description("Open a real Chrome to sign in, then persist the harvested session.")
   .action(async () => {
-    const client = new Basketeer(sessionOptions());
+    const client = new Basketeer(sessionOptions("browser"));
     const session = await client.login();
     emit({
       ok: true,

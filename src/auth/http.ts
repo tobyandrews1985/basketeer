@@ -1,4 +1,4 @@
-import { AuthExpiredError, RateLimitedError } from "../errors.js";
+import { AuthExpiredError, BasketeerError, RateLimitedError } from "../errors.js";
 import { type Market, type MarketCode, refreshUrl, resolveMarket } from "../market.js";
 import type { Session } from "../models.js";
 import { sessionFromCookies } from "./harvest.js";
@@ -65,13 +65,23 @@ export class HttpAuthBackend implements AuthBackend {
       );
     }
 
+    if (res.status >= 500) {
+      throw new BasketeerError(
+        `Tesco token refresh failed with HTTP ${res.status}; the session is unchanged, retry later.`,
+      );
+    }
+
     const rotated = parseSetCookies(res.headers);
-    if (!rotated.has("OAuth.AccessToken")) {
+    if (!rotated.get("OAuth.AccessToken")) {
       throw new AuthExpiredError(
         `Tesco token refresh returned no new access token (HTTP ${res.status}) — interactive re-login required.`,
       );
     }
-    const cookies = { ...session.cookies, ...Object.fromEntries(rotated) };
+    const cookies: Record<string, string> = { ...session.cookies };
+    for (const [name, value] of rotated) {
+      if (value === null) delete cookies[name];
+      else cookies[name] = value;
+    }
     return sessionFromCookies(
       Object.entries(cookies).map(([name, value]) => ({ name, value })),
       { market: this.market },
@@ -79,16 +89,36 @@ export class HttpAuthBackend implements AuthBackend {
   }
 }
 
-/** Name → value of every cookie a response sets (attributes dropped). */
-function parseSetCookies(headers: Headers): Map<string, string> {
+/**
+ * Name → value of every cookie a response sets (other attributes dropped);
+ * `null` marks a cookie the response deletes (empty value, `Max-Age<=0` or an
+ * `Expires` in the past).
+ */
+function parseSetCookies(headers: Headers): Map<string, string | null> {
   if (typeof headers.getSetCookie !== "function") {
     throw new Error("HttpAuthBackend needs Headers.getSetCookie (Node.js 19.7 or newer).");
   }
-  const out = new Map<string, string>();
+  const out = new Map<string, string | null>();
   for (const line of headers.getSetCookie()) {
-    const pair = line.split(";", 1)[0] ?? "";
+    const [pair = "", ...attrs] = line.split(";");
     const eq = pair.indexOf("=");
-    if (eq > 0) out.set(pair.slice(0, eq).trim(), pair.slice(eq + 1).trim());
+    if (eq <= 0) continue;
+    const value = pair.slice(eq + 1).trim();
+    out.set(pair.slice(0, eq).trim(), value === "" || isExpired(attrs) ? null : value);
   }
   return out;
+}
+
+function isExpired(attrs: string[]): boolean {
+  for (const attr of attrs) {
+    const eq = attr.indexOf("=");
+    const key = attr
+      .slice(0, eq < 0 ? undefined : eq)
+      .trim()
+      .toLowerCase();
+    const val = eq < 0 ? "" : attr.slice(eq + 1).trim();
+    if (key === "max-age" && Number(val) <= 0) return true;
+    if (key === "expires" && Date.parse(val) <= Date.now()) return true;
+  }
+  return false;
 }

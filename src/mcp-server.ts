@@ -29,11 +29,11 @@ import { createHash } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { type AuthBackendKind, createAuthBackend, parseAuthBackendKind } from "./auth/backends.js";
+import { createAuthBackend, parseAuthBackendKind } from "./auth/backends.js";
 import type { Basket, NutritionFilter } from "./index.js";
 import { Basketeer, BasketeerError, FileTokenStore } from "./index.js";
 import { isMainModule } from "./is-main.js";
-import { type Market, resolveMarket } from "./market.js";
+import { resolveMarket } from "./market.js";
 import { PRODUCT_FIELDS, projectResults, SEARCH_RESULT_FIELDS } from "./select.js";
 
 /**
@@ -380,22 +380,21 @@ export function buildServer(client: Basketeer): McpServer {
 // stdio transport when run as a binary, so the module can be imported (e.g. by a
 // smoke test) without any filesystem/auth side effects or starting the server.
 if (isMainModule(import.meta.url)) {
-  let market: Market;
-  let auth: AuthBackendKind;
+  let client: Basketeer;
   try {
-    market = resolveMarket(process.env.TESCO_MARKET);
-    auth = parseAuthBackendKind(process.env.TESCO_AUTH ?? "browser");
+    const market = resolveMarket(process.env.TESCO_MARKET);
+    const auth = parseAuthBackendKind(process.env.TESCO_AUTH ?? "browser");
+    const store = new FileTokenStore({ market });
+    client = new Basketeer({
+      market,
+      session: await store.load(),
+      store,
+      authBackend: createAuthBackend(auth, market),
+    });
   } catch (err) {
     process.stderr.write(`basketeer-mcp: ${(err as Error).message}\n`);
     process.exit(1);
   }
-  const store = new FileTokenStore({ market });
-  const client = new Basketeer({
-    market,
-    session: await store.load(),
-    store,
-    authBackend: createAuthBackend(auth, market),
-  });
   const server = buildServer(client);
   await server.connect(new StdioServerTransport());
 }

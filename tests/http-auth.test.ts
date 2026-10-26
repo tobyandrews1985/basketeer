@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { HttpAuthBackend } from "../src/auth/http.js";
-import { AuthExpiredError, RateLimitedError } from "../src/errors.js";
+import { AuthExpiredError, BasketeerError, RateLimitedError } from "../src/errors.js";
 import { MARKETS, refreshUrl } from "../src/market.js";
 import type { Session } from "../src/models.js";
 
@@ -68,6 +68,25 @@ describe("HttpAuthBackend", () => {
     await expect(
       new HttpAuthBackend({ market: "cz", fetchImpl: impl }).refresh(SESSION),
     ).rejects.toThrow(RateLimitedError);
+  });
+
+  it("drops cookies the refresh response deletes", async () => {
+    const { impl } = stub(302, [
+      "OAuth.AccessToken=new.token.sig; Domain=.itesco.cz; Path=/",
+      "_abck=; Domain=.itesco.cz; Path=/",
+      "OAuth.RefreshToken=refresh-1; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/",
+    ]);
+    const renewed = await new HttpAuthBackend({ market: "cz", fetchImpl: impl }).refresh(SESSION);
+    expect(renewed.cookies).not.toHaveProperty("_abck");
+    expect(renewed.cookies).not.toHaveProperty("OAuth.RefreshToken");
+    expect(renewed.cookies.UUID).toBe("uuid-1");
+  });
+
+  it("reports a server error as transient, not as an expired session", async () => {
+    const { impl } = stub(503, []);
+    const refresh = new HttpAuthBackend({ market: "cz", fetchImpl: impl }).refresh(SESSION);
+    await expect(refresh).rejects.toThrow(BasketeerError);
+    await expect(refresh).rejects.not.toThrow(AuthExpiredError);
   });
 
   it("cannot sign in", async () => {

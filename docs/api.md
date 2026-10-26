@@ -136,7 +136,7 @@ This is a client-side heuristic, not a Tesco "orders after" facility. Custom `co
 - URL builders: `groceriesUrl(market)`, `loginUrl(market)`, `refreshUrl(market)`, `checkoutUrl(market)`; `isMarketCookieDomain(market, domain)` for custom backends. `CHECKOUT_URL` is the UK checkout URL and is deprecated in favour of `checkoutUrl(market)` / `checkout().url`.
 - `BrowserAuthBackend({ market })` signs in and refreshes on the market's hosts with its locale and time zone. `AuthBackend.market` is optional; when set, a client for another market throws `MarketMismatchError` at construction, before any sign-in.
 - `sessionFromCookies(cookies, { market })` drops cookies whose `domain` belongs to another market and stamps `session.market`; `new FileTokenStore({ market })` (or `defaultSessionPath(market)`) gives each non-UK market its own session file.
-- A `Session` whose `market` differs from the client's is rejected with `MarketMismatchError` (constructor, `TokenStore` load, or `setSession`). Unstamped sessions are accepted and never stamped.
+- A `Session` whose `market` differs from the client's is rejected with `MarketMismatchError` (constructor, `TokenStore` load, or `setSession`). Unstamped sessions are accepted; the first token refresh stamps them with the client's market.
 - `HttpAuthBackend({ market })` renews a session over plain HTTP by replaying its cookies to `refreshUrl(market)` (verified on `cz`; the UK rejects it). `login()` is unsupported. The CLI (`--auth`) and MCP server read `TESCO_AUTH=browser|http`.
 - `slots.list` default dates (today … +6 days) are calendar days in `market.timeZone`.
 
