@@ -142,3 +142,60 @@ describe("basketeer_search select", () => {
     expect(body.message).toMatch(/unknown select field "cost".*price/);
   });
 });
+
+describe("slot MCP tools", () => {
+  async function connect(stub: Basketeer) {
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await buildServer(stub).connect(serverTransport);
+    const client = new Client({ name: "test", version: "0.0.0" });
+    await client.connect(clientTransport);
+    return client;
+  }
+
+  it("exposes slot book and release tools", async () => {
+    const stub = { slots: {} } as unknown as Basketeer;
+    const client = await connect(stub);
+    const { tools } = await client.listTools();
+    const names = tools.map((tool) => tool.name);
+    expect(names).toContain("basketeer_slots_book");
+    expect(names).toContain("basketeer_slots_release");
+  });
+
+  it("delegates slot booking with the exact slot ID", async () => {
+    const calls: string[] = [];
+    const stub = {
+      slots: {
+        book: async (slotId: string) => {
+          calls.push(slotId);
+          return { id: slotId };
+        },
+      },
+    } as unknown as Basketeer;
+    const client = await connect(stub);
+    const res = (await client.callTool({
+      name: "basketeer_slots_book",
+      arguments: { slotId: "slot-123" },
+    })) as unknown as { content: [{ text: string }] };
+    expect(calls).toEqual(["slot-123"]);
+    expect(JSON.parse(res.content[0].text)).toEqual({ id: "slot-123" });
+  });
+
+  it("delegates slot release with the exact slot ID", async () => {
+    const calls: string[] = [];
+    const stub = {
+      slots: {
+        release: async (slotId: string) => {
+          calls.push(slotId);
+          return { ok: true };
+        },
+      },
+    } as unknown as Basketeer;
+    const client = await connect(stub);
+    const res = (await client.callTool({
+      name: "basketeer_slots_release",
+      arguments: { slotId: "slot-456" },
+    })) as unknown as { content: [{ text: string }] };
+    expect(calls).toEqual(["slot-456"]);
+    expect(JSON.parse(res.content[0].text)).toEqual({ ok: true });
+  });
+});
