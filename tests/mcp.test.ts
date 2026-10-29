@@ -1,7 +1,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { describe, expect, it } from "vitest";
-import type { Basketeer } from "../src/index.js";
+import type { Basketeer, BookedSlot } from "../src/index.js";
 import { BasketeerError } from "../src/index.js";
 import { buildServer, confirmToken } from "../src/mcp-server.js";
 
@@ -150,12 +150,17 @@ describe("basketeer_search select", () => {
 describe("slot MCP tools", () => {
   type ToolResult = { isError?: boolean; content: [{ text: string }] };
 
-  const booked = {
+  const slot: BookedSlot = {
     id: "slot-123",
+    status: "Reserved",
     start: "2026-11-01T10:00:00Z",
     end: "2026-11-01T11:00:00Z",
-    raw: { __typename: "FulfilmentType", huge: "blob" },
+    reservationExpiry: "2026-10-30T10:00:00Z",
+    group: 1,
+    locationUuid: null,
   };
+  // The SDK result plus a nested `raw` blob, to check the tool output strips it.
+  const booked = { ...slot, raw: { __typename: "FulfilmentType", huge: "blob" } };
 
   async function callSlotTool(name: string, slotId: string, slots: Record<string, unknown>) {
     const client = await connect({ slots } as unknown as Basketeer);
@@ -180,7 +185,7 @@ describe("slot MCP tools", () => {
     };
     const { body } = await callSlotTool("basketeer_slots_book", "slot-123", { book });
     expect(calls).toEqual(["slot-123"]);
-    expect(body).toEqual({ id: "slot-123", start: booked.start, end: booked.end });
+    expect(body).toEqual(slot);
   });
 
   it("delegates release with the exact slot ID and strips raw", async () => {
@@ -191,7 +196,7 @@ describe("slot MCP tools", () => {
     };
     const { body } = await callSlotTool("basketeer_slots_release", "slot-456", { release });
     expect(calls).toEqual(["slot-456"]);
-    expect(body).not.toHaveProperty("raw");
+    expect(body).toEqual({ ...slot, id: "slot-456" });
   });
 
   it("surfaces an SDK failure as a tool error", async () => {

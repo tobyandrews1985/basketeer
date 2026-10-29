@@ -224,7 +224,8 @@ export function buildServer(client: Basketeer): McpServer {
   server.tool(
     "basketeer_slots_book",
     "Reserve a delivery slot by ID from basketeer_slots_list. Replaces any slot already reserved " +
-      "for the basket. Does not place or pay for an order.",
+      "for the basket. The hold lapses at reservationExpiry unless the order is checked out. " +
+      "Does not place or pay for an order.",
     {
       slotId: z.string().min(1).describe("The delivery slot ID returned by basketeer_slots_list."),
     },
