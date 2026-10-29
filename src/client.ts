@@ -420,6 +420,12 @@ export class Basketeer {
      * `client.amendingOrderNo` reports the open order.
      */
     amend: (orderNo: string): Promise<Amendment> => this.amendOrder(orderNo),
+    /**
+     * Abandon an open amendment, leaving the order unchanged. Same as the
+     * handle's `discard()`, for callers that no longer hold the handle (e.g.
+     * a restarted process).
+     */
+    discardAmend: (orderNo: string): Promise<void> => this.discardAmend(orderNo),
     /** Cancel an order outright (before its amend/cancel cutoff). */
     cancel: (orderNo: string): Promise<void> => this.cancelOrder(orderNo),
     /** The last delivered order (its items), for "reorder my usual shop". */
@@ -434,11 +440,13 @@ export class Basketeer {
       get: () => this.getBasket(),
       set: (sku, quantity, unit) => this.basket.set(sku, quantity, unit),
       remove: (sku) => this.basket.remove(sku),
-      discard: async () => {
-        await this.orderAction(CANCEL_AMEND, "CancelAmend", orderNo);
-        if (this._amendingOrderNo === orderNo) this._amendingOrderNo = null;
-      },
+      discard: () => this.discardAmend(orderNo),
     };
+  }
+
+  private async discardAmend(orderNo: string): Promise<void> {
+    await this.orderAction(CANCEL_AMEND, "CancelAmend", orderNo);
+    if (this._amendingOrderNo === orderNo) this._amendingOrderNo = null;
   }
 
   private async cancelOrder(orderNo: string): Promise<void> {

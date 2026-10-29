@@ -277,6 +277,47 @@ export function buildServer(client: Basketeer): McpServer {
   );
 
   server.tool(
+    "basketeer_orders_amend",
+    "Open an upcoming order for changes (only before its amendExpiry). While it is open, " +
+      "basketeer_basket_set / basketeer_basket_remove edit THAT order instead of a new basket. " +
+      "Changes are only saved once the human completes basketeer_checkout's URL (paying any difference); " +
+      "otherwise call basketeer_orders_amend_discard. Returns the order's working basket.",
+    { orderNo: z.string().min(1).describe("The order number from basketeer_orders_list.") },
+    { readOnlyHint: false, destructiveHint: false },
+    ({ orderNo }) =>
+      run(async () => {
+        const amendment = await client.orders.amend(orderNo);
+        return { amending: orderNo, basket: await amendment.get() };
+      }),
+  );
+
+  server.tool(
+    "basketeer_orders_amend_discard",
+    "Abandon an order opened with basketeer_orders_amend, dropping unsaved changes and leaving the order as it was. " +
+      "Two-step: call once with just orderNo to get a confirmToken; call again with confirm set to that token.",
+    {
+      orderNo: z.string().min(1).describe("The order number currently open for amendment."),
+      confirm: z.string().optional(),
+    },
+    { readOnlyHint: false, destructiveHint: true },
+    ({ orderNo, confirm }) =>
+      run(async () => {
+        const token = confirmToken(`discard-amend:${orderNo}`);
+        if (confirm !== token) {
+          return {
+            requiresConfirmation: true,
+            action: "discard_amendment",
+            orderNo,
+            confirmToken: token,
+            hint: "Discarding drops every unsaved change to this order. Call again with confirm set to this confirmToken to proceed.",
+          };
+        }
+        await client.orders.discardAmend(orderNo);
+        return { ok: true, discarded: orderNo };
+      }),
+  );
+
+  server.tool(
     "basketeer_last_order",
     "Return the last delivered (fulfilled) order and its items, e.g. for 'reorder my usual shop'. " +
       "Returns null if there is none. This is a read — to reorder, add its items via basketeer_basket_set.",
