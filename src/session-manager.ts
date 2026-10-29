@@ -66,8 +66,17 @@ export class SessionManager {
     };
   }
 
-  /** Renew via the backend. Returns false if renewal is impossible. */
+  /**
+   * Renew the session. Adopts a newer session from the store first (another
+   * process, such as a fresh `login`, may have saved one), otherwise renews via
+   * the backend. Returns false if renewal is impossible.
+   */
   async refresh(): Promise<boolean> {
+    const stored = await this.store?.load();
+    if (stored && stored.accessToken !== this.session?.accessToken) {
+      this.session = stored;
+      return true;
+    }
     if (!this.backend || !this.session) return false;
     const renewed = await this.backend.refresh(this.session);
     await this.setSession(renewed);

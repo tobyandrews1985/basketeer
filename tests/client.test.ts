@@ -7,6 +7,7 @@ import {
   LineRejectedError,
   RateLimitedError,
 } from "../src/errors.js";
+import { MemoryTokenStore } from "../src/store/memory-store.js";
 import { makeNutritionClient, makeNutritionClientWith, SESSION, stubFetch } from "./helpers.js";
 
 const SEARCH_BODY = [
@@ -487,6 +488,23 @@ describe("401 refresh-and-retry", () => {
     expect(basket.id).toBe("b1");
     // retried call carried the refreshed bearer
     expect(calls[1]!.headers["authorization"]).toBe("Bearer new.token.sig");
+  });
+
+  it("adopts a session another process saved to the store, then retries", async () => {
+    const unauthorized = [
+      { errors: [{ message: "unauthorized", extensions: { http: { status: 401 } } }] },
+    ];
+    const ok = [{ data: { basket: { id: "b1", items: [] } } }];
+    const { impl, calls } = stubFetch([{ body: unauthorized }, { body: ok }]);
+
+    // Started with no session; a separate login then saved one to the store.
+    const store = new MemoryTokenStore();
+    const t = new Basketeer({ store, throttleMs: 0, fetchImpl: impl });
+    await store.save({ ...SESSION, accessToken: "fresh.login.sig" });
+
+    const basket = await t.basket.get();
+    expect(basket.id).toBe("b1");
+    expect(calls[1]!.headers["authorization"]).toBe("Bearer fresh.login.sig");
   });
 
   it("throws AuthExpiredError when refresh is impossible (no backend)", async () => {
