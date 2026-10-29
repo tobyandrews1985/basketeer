@@ -223,16 +223,21 @@ export function buildServer(client: Basketeer): McpServer {
 
   server.tool(
     "basketeer_slots_book",
-    "Reserve a Tesco delivery slot by slot ID. This changes the basket's delivery-slot reservation but does not place or pay for an order.",
-    { slotId: z.string().describe("The delivery slot ID returned by basketeer_slots_list.") },
-    { readOnlyHint: false, destructiveHint: false },
+    "Reserve a delivery slot by ID from basketeer_slots_list. Replaces any slot already reserved " +
+      "for the basket. The hold lapses at reservationExpiry unless the order is checked out. " +
+      "Does not place or pay for an order.",
+    {
+      slotId: z.string().min(1).describe("The delivery slot ID returned by basketeer_slots_list."),
+    },
+    { readOnlyHint: false, destructiveHint: true },
     ({ slotId }) => run(() => client.slots.book(slotId)),
   );
 
   server.tool(
     "basketeer_slots_release",
-    "Release the currently reserved Tesco delivery slot by slot ID.",
-    { slotId: z.string().describe("The reserved delivery slot ID to release.") },
+    "Release a reserved delivery slot by ID (the slot with status 'Booked' in basketeer_slots_list). " +
+      "Once released, the slot may be taken by another customer.",
+    { slotId: z.string().min(1).describe("The reserved delivery slot ID to release.") },
     { readOnlyHint: false, destructiveHint: true },
     ({ slotId }) => run(() => client.slots.release(slotId)),
   );

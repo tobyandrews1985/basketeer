@@ -1,8 +1,18 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { describe, expect, it } from "vitest";
-import type { Basketeer } from "../src/index.js";
+import type { Basketeer, BookedSlot } from "../src/index.js";
+import { BasketeerError } from "../src/index.js";
 import { buildServer, confirmToken } from "../src/mcp-server.js";
+
+/** Connect an MCP client to a server built over a stubbed SDK client. */
+async function connect(stub: Basketeer) {
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  await buildServer(stub).connect(serverTransport);
+  const client = new Client({ name: "test", version: "0.0.0" });
+  await client.connect(clientTransport);
+  return client;
+}
 
 describe("confirmToken", () => {
   it("is deterministic for the same input", () => {
@@ -47,10 +57,7 @@ describe("basket mutation receipts (issue #9)", () => {
         remove: async () => basket,
       },
     } as unknown as Basketeer;
-    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-    await buildServer(stub).connect(serverTransport);
-    const client = new Client({ name: "test", version: "0.0.0" });
-    await client.connect(clientTransport);
+    const client = await connect(stub);
     const res = (await client.callTool({ name, arguments: args })) as unknown as {
       content: [{ text: string }];
     };
@@ -107,10 +114,7 @@ describe("basketeer_search select", () => {
 
   async function callSearch(args: Record<string, unknown>) {
     const stub = { search: async () => page } as unknown as Basketeer;
-    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-    await buildServer(stub).connect(serverTransport);
-    const client = new Client({ name: "test", version: "0.0.0" });
-    await client.connect(clientTransport);
+    const client = await connect(stub);
     const res = (await client.callTool({
       name: "basketeer_search",
       arguments: args,
@@ -144,58 +148,78 @@ describe("basketeer_search select", () => {
 });
 
 describe("slot MCP tools", () => {
-  async function connect(stub: Basketeer) {
-    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-    await buildServer(stub).connect(serverTransport);
-    const client = new Client({ name: "test", version: "0.0.0" });
-    await client.connect(clientTransport);
-    return client;
+  type ToolResult = { isError?: boolean; content: [{ text: string }] };
+
+  const slot: BookedSlot = {
+    id: "slot-123",
+    status: "Reserved",
+    start: "2026-11-01T10:00:00Z",
+    end: "2026-11-01T11:00:00Z",
+    reservationExpiry: "2026-10-30T10:00:00Z",
+    group: 1,
+    locationUuid: null,
+  };
+  // The SDK result plus a nested `raw` blob, to check the tool output strips it.
+  const booked = { ...slot, raw: { __typename: "FulfilmentType", huge: "blob" } };
+
+  async function callSlotTool(name: string, slotId: string, slots: Record<string, unknown>) {
+    const client = await connect({ slots } as unknown as Basketeer);
+    const res = (await client.callTool({ name, arguments: { slotId } })) as unknown as ToolResult;
+    return { isError: res.isError, body: JSON.parse(res.content[0].text) };
   }
 
-  it("exposes slot book and release tools", async () => {
-    const stub = { slots: {} } as unknown as Basketeer;
-    const client = await connect(stub);
+  it("exposes book and release as destructive mutations", async () => {
+    const client = await connect({ slots: {} } as unknown as Basketeer);
     const { tools } = await client.listTools();
-    const names = tools.map((tool) => tool.name);
-    expect(names).toContain("basketeer_slots_book");
-    expect(names).toContain("basketeer_slots_release");
+    for (const name of ["basketeer_slots_book", "basketeer_slots_release"]) {
+      const tool = tools.find((t) => t.name === name);
+      expect(tool?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true });
+    }
   });
 
-  it("delegates slot booking with the exact slot ID", async () => {
+  it("delegates booking with the exact slot ID and strips raw", async () => {
     const calls: string[] = [];
-    const stub = {
-      slots: {
-        book: async (slotId: string) => {
-          calls.push(slotId);
-          return { id: slotId };
-        },
-      },
-    } as unknown as Basketeer;
-    const client = await connect(stub);
+    const book = async (slotId: string) => {
+      calls.push(slotId);
+      return booked;
+    };
+    const { body } = await callSlotTool("basketeer_slots_book", "slot-123", { book });
+    expect(calls).toEqual(["slot-123"]);
+    expect(body).toEqual(slot);
+  });
+
+  it("delegates release with the exact slot ID and strips raw", async () => {
+    const calls: string[] = [];
+    const release = async (slotId: string) => {
+      calls.push(slotId);
+      return { ...booked, id: slotId };
+    };
+    const { body } = await callSlotTool("basketeer_slots_release", "slot-456", { release });
+    expect(calls).toEqual(["slot-456"]);
+    expect(body).toEqual({ ...slot, id: "slot-456" });
+  });
+
+  it("surfaces an SDK failure as a tool error", async () => {
+    const book = async () => {
+      throw new BasketeerError("Slot BOOK returned no slot");
+    };
+    const { isError, body } = await callSlotTool("basketeer_slots_book", "slot-123", { book });
+    expect(isError).toBe(true);
+    expect(body).toEqual({ error: "BasketeerError", message: "Slot BOOK returned no slot" });
+  });
+
+  it("rejects an empty slot ID without calling the SDK", async () => {
+    const calls: string[] = [];
+    const book = async (slotId: string) => {
+      calls.push(slotId);
+      return booked;
+    };
+    const client = await connect({ slots: { book } } as unknown as Basketeer);
     const res = (await client.callTool({
       name: "basketeer_slots_book",
-      arguments: { slotId: "slot-123" },
-    })) as unknown as { content: [{ text: string }] };
-    expect(calls).toEqual(["slot-123"]);
-    expect(JSON.parse(res.content[0].text)).toEqual({ id: "slot-123" });
-  });
-
-  it("delegates slot release with the exact slot ID", async () => {
-    const calls: string[] = [];
-    const stub = {
-      slots: {
-        release: async (slotId: string) => {
-          calls.push(slotId);
-          return { ok: true };
-        },
-      },
-    } as unknown as Basketeer;
-    const client = await connect(stub);
-    const res = (await client.callTool({
-      name: "basketeer_slots_release",
-      arguments: { slotId: "slot-456" },
-    })) as unknown as { content: [{ text: string }] };
-    expect(calls).toEqual(["slot-456"]);
-    expect(JSON.parse(res.content[0].text)).toEqual({ ok: true });
+      arguments: { slotId: "" },
+    })) as unknown as ToolResult;
+    expect(res.isError).toBe(true);
+    expect(calls).toEqual([]);
   });
 });
