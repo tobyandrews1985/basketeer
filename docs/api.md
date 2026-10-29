@@ -19,6 +19,7 @@ The full surface. For the pitch, quick start, and how it works, see the [README]
 | Orders | `orders.list(opts)` → `Order[]` | authed | Upcoming orders + amend window. |
 | Order history | `orders.history({ offset?, limit?, contexts? })` → `OrderHistoryPage` | authed | Completed orders, newest first. Offset-paged and **live** — see [Order history](#order-history). |
 | Amend | `orders.amend(no)` → `Amendment` | authed | Scoped handle: `.set / .remove / .discard`. |
+| Discard amend | `orders.discardAmend(no)` | authed | Abandon an open amendment without its handle (e.g. after a restart). |
 | Cancel | `orders.cancel(no)` | authed | Before the cutoff. |
 | Reorder | `orders.lastFulfilled()` → `Order \| null` | authed | Last delivered shop. |
 | Checkout | `checkout()` → `{ basket, url }` | authed | **Stops at the payment URL. Never pays.** |

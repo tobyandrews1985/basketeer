@@ -147,6 +147,68 @@ describe("basketeer_search select", () => {
   });
 });
 
+describe("order amend MCP tools", () => {
+  type ToolResult = { isError?: boolean; content: [{ text: string }] };
+  const basket = {
+    id: "b1",
+    guidePrice: 16.3,
+    isInAmend: true,
+    amendExpiry: "2026-10-30T23:46:00Z",
+    shoppingMethod: "delivery",
+    items: [{ id: "l1", sku: "111", quantity: 1, unit: "pcs", cost: 8.65, available: true }],
+    raw: { huge: "blob" },
+  };
+
+  function stubOrders() {
+    const calls: string[] = [];
+    const orders = {
+      amend: async (orderNo: string) => {
+        calls.push(`amend:${orderNo}`);
+        return { orderNo, get: async () => basket };
+      },
+      discardAmend: async (orderNo: string) => {
+        calls.push(`discard:${orderNo}`);
+      },
+    };
+    return { calls, stub: { orders } as unknown as Basketeer };
+  }
+
+  async function call(stub: Basketeer, name: string, args: Record<string, unknown>) {
+    const client = await connect(stub);
+    const res = (await client.callTool({ name, arguments: args })) as unknown as ToolResult;
+    return { isError: res.isError, body: JSON.parse(res.content[0].text) };
+  }
+
+  it("amend opens the order and returns its working basket without raw", async () => {
+    const { calls, stub } = stubOrders();
+    const { body } = await call(stub, "basketeer_orders_amend", { orderNo: "5931" });
+    expect(calls).toEqual(["amend:5931"]);
+    expect(body.amending).toBe("5931");
+    expect(body.basket.isInAmend).toBe(true);
+    expect(body.basket).not.toHaveProperty("raw");
+  });
+
+  it("discard needs the confirm token before calling the SDK", async () => {
+    const { calls, stub } = stubOrders();
+    const first = await call(stub, "basketeer_orders_amend_discard", { orderNo: "5931" });
+    expect(first.body).toMatchObject({ requiresConfirmation: true, orderNo: "5931" });
+    expect(calls).toEqual([]);
+
+    const confirm = first.body.confirmToken;
+    const second = await call(stub, "basketeer_orders_amend_discard", { orderNo: "5931", confirm });
+    expect(second.body).toEqual({ ok: true, discarded: "5931" });
+    expect(calls).toEqual(["discard:5931"]);
+  });
+
+  it("marks discard destructive and amend non-destructive", async () => {
+    const client = await connect({ orders: {} } as unknown as Basketeer);
+    const { tools } = await client.listTools();
+    const hints = (name: string) => tools.find((t) => t.name === name)?.annotations;
+    expect(hints("basketeer_orders_amend")).toMatchObject({ destructiveHint: false });
+    expect(hints("basketeer_orders_amend_discard")).toMatchObject({ destructiveHint: true });
+  });
+});
+
 describe("slot MCP tools", () => {
   type ToolResult = { isError?: boolean; content: [{ text: string }] };
 

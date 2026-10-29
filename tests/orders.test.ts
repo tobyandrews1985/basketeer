@@ -203,6 +203,21 @@ describe("orders.cancel", () => {
   });
 });
 
+describe("orders.discardAmend", () => {
+  it("sends CancelAmend with {orderNo} and clears amendingOrderNo", async () => {
+    const order = { body: [{ data: { order: { id: "order-id-1", orderNo: "100200300" } } }] };
+    const { impl, calls } = stubFetch([order, order]);
+    const t = new Basketeer({ session: SESSION, throttleMs: 0, fetchImpl: impl });
+    await t.orders.amend("100200300");
+    expect(t.amendingOrderNo).toBe("100200300");
+
+    await t.orders.discardAmend("100200300");
+    expect(calls[1]!.body[0].operationName).toBe("CancelAmend");
+    expect(calls[1]!.body[0].variables).toEqual({ orderNo: "100200300" });
+    expect(t.amendingOrderNo).toBeNull();
+  });
+});
+
 describe("orders.lastFulfilled", () => {
   it("sends GetLastFulfilledOrder and parses order{} into an Order", async () => {
     const { impl, calls } = stubFetch([{ body: LAST_FULFILLED_BODY }]);
