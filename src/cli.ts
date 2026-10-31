@@ -10,6 +10,7 @@
  * hands back a payment URL — a human completes payment in a browser.
  *
  * The storefront comes from `--market <code>` or the `TESCO_MARKET` env var
+ * (a custom one from `--market-config <file>` or `TESCO_MARKET_CONFIG`)
  * (default `uk`); each market keeps its own session file. `--auth` /
  * `TESCO_AUTH` picks how sessions are renewed (`browser` default, `http`).
  */
@@ -19,7 +20,13 @@ import { type AuthBackendKind, createAuthBackend, parseAuthBackendKind } from ".
 import type { NutritionFilter } from "./index.js";
 import { Basketeer, BasketeerError, FileTokenStore } from "./index.js";
 import { isMainModule } from "./is-main.js";
-import { DEFAULT_MARKET, type Market, resolveMarket } from "./market.js";
+import {
+  DEFAULT_MARKET,
+  loadMarketConfig,
+  type Market,
+  marketSupportNotice,
+  resolveMarket,
+} from "./market.js";
 
 /** Pretty-print any JSON-serialisable value to stdout. */
 function emit(value: unknown): void {
@@ -50,6 +57,15 @@ export function marketArg(value: string): Market {
   }
 }
 
+/** commander parser: a valid custom market file, else a usage error. */
+export function marketConfigArg(path: string): Market {
+  try {
+    return loadMarketConfig(path);
+  } catch (err) {
+    throw new InvalidArgumentError((err as Error).message);
+  }
+}
+
 /** commander parser: a known auth backend kind, else a usage error. */
 export function authArg(value: string): AuthBackendKind {
   try {
@@ -64,10 +80,16 @@ program
   .name("basketeer")
   .description("Typed CLI for Tesco grocery automation (basketeer).")
   .addOption(
-    new Option("--market <code>", "Tesco storefront: uk or cz")
+    new Option("--market <code>", "Tesco storefront: uk, or cz (community-maintained)")
       .env("TESCO_MARKET")
       .argParser(marketArg)
       .default(DEFAULT_MARKET, "uk"),
+  )
+  .addOption(
+    new Option("--market-config <file>", "custom market JSON file (untested, no guarantees)")
+      .env("TESCO_MARKET_CONFIG")
+      .argParser(marketConfigArg)
+      .conflicts("market"),
   )
   .addOption(
     new Option("--auth <backend>", "session renewal: browser (Chrome) or http (browserless)")
@@ -75,11 +97,19 @@ program
       .argParser(authArg)
       .default("browser"),
   )
-  .showHelpAfterError();
+  .showHelpAfterError()
+  .hook("preAction", () => {
+    const notice = marketSupportNotice(market());
+    if (notice) process.stderr.write(`basketeer: ${notice}\n`);
+  });
 
-/** The market selected by `--market` / `TESCO_MARKET`. */
+/** The market selected by `--market-config` or `--market` (or their env vars). */
 function market(): Market {
-  return program.opts<{ market: Market }>().market;
+  const { market: builtIn, marketConfig } = program.opts<{
+    market: Market;
+    marketConfig?: Market;
+  }>();
+  return marketConfig ?? builtIn;
 }
 
 /**

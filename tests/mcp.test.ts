@@ -300,6 +300,7 @@ describe("server instructions", () => {
     expect(instructions).toContain("CZ");
     expect(instructions).toContain("CZK");
     expect(instructions).toContain("cs-CZ");
+    expect(instructions).toContain("community-maintained");
     await client.close();
   });
 });

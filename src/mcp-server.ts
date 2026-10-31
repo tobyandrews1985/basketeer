@@ -10,7 +10,8 @@
  *   - Authed ops reuse whatever session was saved for the market
  *     (`~/.basketeer/session.json` for the UK, `session.<code>.json` otherwise;
  *     mint one with `basketeer login`).
- *   - The storefront comes from the `TESCO_MARKET` env var (`uk` default, `cz`);
+ *   - The storefront comes from the `TESCO_MARKET` env var (`uk` default, `cz`)
+ *     or a custom market file in `TESCO_MARKET_CONFIG`;
  *     `TESCO_AUTH` picks session renewal (`browser` default, `http` browserless).
  *
  * Import safety: building the client (which reads the session file from disk)
@@ -33,7 +34,7 @@ import { createAuthBackend, parseAuthBackendKind } from "./auth/backends.js";
 import type { Basket, NutritionFilter } from "./index.js";
 import { Basketeer, BasketeerError, FileTokenStore } from "./index.js";
 import { isMainModule } from "./is-main.js";
-import { resolveMarket } from "./market.js";
+import { marketFromEnv, marketSupportNotice } from "./market.js";
 import { PRODUCT_FIELDS, projectResults, SEARCH_RESULT_FIELDS } from "./select.js";
 
 /**
@@ -99,12 +100,14 @@ export function confirmToken(parts: string): string {
  */
 export function buildServer(client: Basketeer): McpServer {
   const { market } = client;
+  const supportNotice = marketSupportNotice(market);
   const server = new McpServer(
     { name: "basketeer", version: "0.1.1" },
     {
       instructions:
         `Connected to the Tesco ${market.code.toUpperCase()} storefront (${market.shopOrigin}). ` +
-        `Prices are in ${market.currency}; search in the storefront's language (${market.language}).`,
+        `Prices are in ${market.currency}; search in the storefront's language (${market.language}).` +
+        (supportNotice && ` ${supportNotice}`),
     },
   );
 
@@ -382,7 +385,7 @@ export function buildServer(client: Basketeer): McpServer {
 if (isMainModule(import.meta.url)) {
   let client: Basketeer;
   try {
-    const market = resolveMarket(process.env.TESCO_MARKET);
+    const market = marketFromEnv();
     const auth = parseAuthBackendKind(process.env.TESCO_AUTH ?? "browser");
     const store = new FileTokenStore({ market });
     client = new Basketeer({

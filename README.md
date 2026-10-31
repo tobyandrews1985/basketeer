@@ -165,10 +165,12 @@ Tesco's website talks to a GraphQL gateway at `xapi.tesco.com`. basketeer speaks
 
 Tesco storefronts in other countries run on the same `xapi.tesco.com` gateway, schema, and public key; requests are routed by a `region`/`language` header pair. A client talks to one market:
 
-| Code | Storefront | Shop / account hosts | Status |
-| --- | --- | --- | --- |
-| `uk` (default) | Tesco UK | `www.tesco.com` | full test suite + live use |
-| `cz` | Tesco Czech Republic | `nakup.itesco.cz` / `www.itesco.cz` | verified live: search, nutrition, basket, favourites, slots, checkout URL |
+| Code | Storefront | Shop / account hosts | Status | Maintainer |
+| --- | --- | --- | --- | --- |
+| `uk` (default) | Tesco UK | `www.tesco.com` | supported: full test suite + live use | `tobyandrews1985` |
+| `cz` | Tesco Czech Republic | `nakup.itesco.cz` / `www.itesco.cz` | experimental, community-maintained: search, nutrition, basket, favourites, slot listing and the checkout URL verified live; slot booking and order amend not tried | `vsem-azamat` |
+
+Report Czech storefront problems to its maintainer: the project owner has no Czech account and cannot test them.
 
 ```ts
 const client = new Basketeer({ market: "cz" });                      // anonymous reads
@@ -180,7 +182,24 @@ The CLI takes `--market cz`; the CLI and the MCP server both read `TESCO_MARKET`
 
 On the Czech storefront the token refresh endpoint also accepts a plain HTTP client from a residential connection, so `HttpAuthBackend` can keep a session alive for the refresh token's lifetime (~30 days) with no browser on the host: sign in once anywhere (or `sessionFromCookies`), copy the session file, and run with `TESCO_AUTH=http` (CLI `--auth http`). The UK storefront rejects browserless refresh; keep the default `browser` backend there.
 
-Another storefront on the same gateway can be tried by passing your own `Market` object (`region`, `language`, hosts, cookie domain, time zone, currency).
+### Custom markets (untested, no guarantees)
+
+Other storefronts on the same gateway may work, but nobody has tested or supports them. To try one, pass your own `Market` object to the SDK, or point the CLI (`--market-config <file>`) or the MCP server (`TESCO_MARKET_CONFIG`) at a JSON file with the same fields. In the file all fields are required and the hosts must sit on `cookieDomain`; setting it together with `--market`/`TESCO_MARKET` is an error. SDK objects are not checked unless you pass them through `parseMarketConfig`. A market file decides where your session cookies go, so only use one you trust:
+
+```json
+{
+  "code": "ie",
+  "region": "IE",
+  "language": "en-IE",
+  "shopOrigin": "https://www.tesco.ie",
+  "accountOrigin": "https://www.tesco.ie",
+  "cookieDomain": "tesco.ie",
+  "timeZone": "Europe/Dublin",
+  "currency": "EUR"
+}
+```
+
+If you get a market working and want to look after it, open a PR that adds it as a built-in with you in the maintainer column.
 
 ## Auth, you choose where the browser runs
 
@@ -257,6 +276,7 @@ basketeer slots                      # --collection for click-and-collect
 basketeer orders list
 basketeer checkout                   # prints the payment URL; you finish in a browser
 basketeer --market cz search "olivy" # any command against another storefront (or TESCO_MARKET=cz)
+basketeer --market-config ie.json search milk # a custom market: untested, no guarantees
 ```
 
 ## Examples
@@ -280,7 +300,7 @@ Everything thrown is a `BasketeerError` subclass, so you can branch on the type.
 
 ## Known limitations
 
-- **Two markets.** UK and Czech Republic are supported (see [Markets](#markets)). Other storefronts on the same gateway are untested.
+- **One supported market.** The UK is supported; the Czech Republic is experimental and community-maintained; other storefronts on the same gateway are untested (see [Markets](#markets)).
 - **Pre-release (v0.1).** The public API may change between minor versions until 1.0.
 - **Reverse-engineered.** No public contract from Tesco; an operation or the public key can change and break a call until updated.
 - **Auth needs a real browser on a residential connection.** Datacenter IPs are blocked for sign-in; the pure-HTTP data plane runs anywhere.

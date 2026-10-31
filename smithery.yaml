@@ -9,7 +9,7 @@ startCommand:
         type: string
         enum: ["uk", "cz"]
         default: "uk"
-        description: Tesco storefront (UK or Czech Republic).
+        description: Tesco storefront (UK, or Czech Republic, which is experimental and community-maintained).
     additionalProperties: false
   commandFunction: |-
     (config) => ({

@@ -1,6 +1,12 @@
 import { InvalidArgumentError } from "commander";
 import { describe, expect, it } from "vitest";
-import { authArg, marketArg, nonNegativeInt, nonNegativeNumber } from "../src/cli.js";
+import {
+  authArg,
+  marketArg,
+  marketConfigArg,
+  nonNegativeInt,
+  nonNegativeNumber,
+} from "../src/cli.js";
 import { MARKETS } from "../src/market.js";
 
 describe("cli numeric parsers", () => {
@@ -23,6 +29,10 @@ describe("cli market parser", () => {
     expect(marketArg("cz")).toBe(MARKETS.cz);
     expect(marketArg("UK")).toBe(MARKETS.uk);
     expect(() => marketArg("de")).toThrow(InvalidArgumentError);
+  });
+
+  it("marketConfigArg turns an unreadable file into a usage error", () => {
+    expect(() => marketConfigArg("/nonexistent/market.json")).toThrow(InvalidArgumentError);
   });
 });
 

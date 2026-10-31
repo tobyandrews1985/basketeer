@@ -130,9 +130,10 @@ This is a client-side heuristic, not a Tesco "orders after" facility. Custom `co
 
 ## Markets
 
-`new Basketeer({ market })` takes a built-in code (`"uk"` default, `"cz"`) or a custom `Market`; `client.market` exposes the resolved one. Exports:
+`new Basketeer({ market })` takes a built-in code (`"uk"` default, `"cz"`, experimental and community-maintained) or a custom `Market` (untested, no guarantees); `client.market` exposes the resolved one. Exports:
 
 - `MARKETS`, `DEFAULT_MARKET`, `resolveMarket(codeOrMarket)` (throws `RangeError` on an unknown code), `isMarketCode(code)`.
+- `parseMarketConfig(value)` and `loadMarketConfig(path)` validate a custom market (throw `RangeError`); `marketFromEnv(env)` reads `TESCO_MARKET` or `TESCO_MARKET_CONFIG`; `marketSupportNotice(market)` returns the caveat for a market that is not `official`.
 - URL builders: `groceriesUrl(market)`, `loginUrl(market)`, `refreshUrl(market)`, `checkoutUrl(market)`; `isMarketCookieDomain(market, domain)` for custom backends. `CHECKOUT_URL` is the UK checkout URL and is deprecated in favour of `checkoutUrl(market)` / `checkout().url`.
 - `BrowserAuthBackend({ market })` signs in and refreshes on the market's hosts with its locale and time zone. `AuthBackend.market` is optional; when set, a client for another market throws `MarketMismatchError` at construction, before any sign-in.
 - `sessionFromCookies(cookies, { market })` drops cookies whose `domain` belongs to another market and stamps `session.market`; `new FileTokenStore({ market })` (or `defaultSessionPath(market)`) gives each non-UK market its own session file.

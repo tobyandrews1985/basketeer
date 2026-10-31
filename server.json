@@ -20,9 +20,14 @@
       "environmentVariables": [
         {
           "name": "TESCO_MARKET",
-          "description": "Tesco storefront: uk (default) or cz",
+          "description": "Tesco storefront: uk (default), or cz (experimental, community-maintained)",
           "isRequired": false,
-          "default": "uk",
+          "format": "string"
+        },
+        {
+          "name": "TESCO_MARKET_CONFIG",
+          "description": "Path to a custom market JSON file, instead of TESCO_MARKET (untested, no guarantees)",
+          "isRequired": false,
           "format": "string"
         },
         {

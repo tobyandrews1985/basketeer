@@ -23,15 +23,19 @@ export {
 export type { ImageSize } from "./images.js";
 export { resizeImageUrl } from "./images.js";
 // Markets
-export type { Market, MarketCode } from "./market.js";
+export type { Market, MarketCode, MarketSupport } from "./market.js";
 export {
   checkoutUrl,
   DEFAULT_MARKET,
   groceriesUrl,
   isMarketCode,
   isMarketCookieDomain,
+  loadMarketConfig,
   loginUrl,
   MARKETS,
+  marketFromEnv,
+  marketSupportNotice,
+  parseMarketConfig,
   refreshUrl,
   resolveMarket,
 } from "./market.js";
