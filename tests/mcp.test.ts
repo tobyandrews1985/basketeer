@@ -3,12 +3,14 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { describe, expect, it } from "vitest";
 import type { Basketeer, BookedSlot } from "../src/index.js";
 import { BasketeerError } from "../src/index.js";
+import { MARKETS } from "../src/market.js";
 import { buildServer, confirmToken } from "../src/mcp-server.js";
 
-/** Connect an MCP client to a server built over a stubbed SDK client. */
+/** Connect an MCP client to a server built over a stubbed SDK client (UK unless the stub sets a market). */
 async function connect(stub: Basketeer) {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  await buildServer(stub).connect(serverTransport);
+  const withMarket = { ...stub, market: stub.market ?? MARKETS.uk } as unknown as Basketeer;
+  await buildServer(withMarket).connect(serverTransport);
   const client = new Client({ name: "test", version: "0.0.0" });
   await client.connect(clientTransport);
   return client;
@@ -51,6 +53,7 @@ describe("basket mutation receipts (issue #9)", () => {
 
   async function callTool(name: string, args: Record<string, unknown>) {
     const stub = {
+      market: MARKETS.uk,
       basket: {
         get: async () => basket,
         set: async () => basket,
@@ -283,5 +286,21 @@ describe("slot MCP tools", () => {
     })) as unknown as ToolResult;
     expect(res.isError).toBe(true);
     expect(calls).toEqual([]);
+  });
+});
+
+describe("server instructions", () => {
+  it("tell the model which storefront, currency and language it is on", async () => {
+    const stub = { market: MARKETS.cz } as unknown as Basketeer;
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await buildServer(stub).connect(serverTransport);
+    const client = new Client({ name: "test", version: "0" });
+    await client.connect(clientTransport);
+    const instructions = client.getInstructions() ?? "";
+    expect(instructions).toContain("CZ");
+    expect(instructions).toContain("CZK");
+    expect(instructions).toContain("cs-CZ");
+    expect(instructions).toContain("community-maintained");
+    await client.close();
   });
 });

@@ -1,3 +1,5 @@
+import { checkoutUrl, DEFAULT_MARKET } from "./market.js";
+
 /**
  * Config, constants, and small public helpers. GraphQL query strings are
  * internal and live in queries.ts.
@@ -11,13 +13,12 @@ export const PUBLIC_API_KEY = "TvOSZJHlEk0pjniDGQFAc9Q59WGAR4dA";
 export const ENDPOINT = "https://xapi.tesco.com/";
 
 /**
- * The Tesco order-summary / payment page. Payment is completed HERE in a browser
- * — a separate CSRF-protected checkout app + 3-D Secure card authentication
- * (browser-bound by design, PCI/fraud-sensitive), deliberately NOT part of the
- * pure-HTTP API. Fill the basket + book a slot via this SDK, then finish here.
+ * The UK order-summary / payment page.
+ *
+ * @deprecated Market-specific — use `checkoutUrl(market)`, or the `url` that
+ *   `Basketeer.checkout()` returns for the client's market.
  */
-export const CHECKOUT_URL =
-  "https://www.tesco.com/checkout/en-GB/groceries/order-summary?basketType=GROCERY";
+export const CHECKOUT_URL = checkoutUrl(DEFAULT_MARKET);
 
 /** Micro-frontend tags Tesco's own client sends per operation. Internal. */
 export const MFE = {

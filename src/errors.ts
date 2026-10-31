@@ -32,6 +32,13 @@ export class RateLimitedError extends BasketeerError {
  */
 export class ApiKeyError extends BasketeerError {}
 
+/**
+ * A session minted on one Tesco market was handed to a client configured for
+ * another (e.g. a UK session on a CZ client). Tokens are market-scoped, so this
+ * is a configuration error, never retryable.
+ */
+export class MarketMismatchError extends BasketeerError {}
+
 /** Thrown when a requested resource does not exist (e.g. an unknown SKU). */
 export class NotFoundError extends BasketeerError {}
 

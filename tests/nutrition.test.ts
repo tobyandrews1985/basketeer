@@ -53,6 +53,34 @@ describe("parseNutrition", () => {
     expect(n.micros).toHaveLength(0);
   });
 
+  it("normalizes a Czech table (English header, Czech labels, comma decimals)", () => {
+    const n = parseNutrition(fixture("czech-olives.json"))!;
+    expect(n.basis).toBe("per_100g");
+    expect(n.macros).toEqual({
+      energyKcal: 162,
+      energyKj: 669,
+      protein: 1.8,
+      fat: 15,
+      saturates: 2.7,
+      carbs: 4.1,
+      sugars: 0.2,
+      fibre: null,
+      salt: 3.2,
+    });
+    expect(n.micros).toEqual([]);
+  });
+
+  it("reads the basis from a Czech header row and a split energy label", () => {
+    const n = parseNutrition([
+      { name: "Průměrná výživová hodnota", value1: "ve 100 ml", value2: null, value3: null },
+      { name: "Energie", value1: "180 kJ / 43 kcal", value2: null, value3: null },
+      { name: "Bílkoviny", value1: "3,4 g", value2: null, value3: null },
+    ])!;
+    expect(n.basis).toBe("per_100ml");
+    expect(n.macros).toMatchObject({ energyKj: 180, energyKcal: 43, protein: 3.4 });
+    expect(n.micros).toEqual([]);
+  });
+
   it("returns null for empty/invalid input", () => {
     expect(parseNutrition(fixture("empty.json"))).toBeNull();
     expect(parseNutrition(null as unknown as unknown[])).toBeNull();

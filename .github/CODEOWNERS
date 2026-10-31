@@ -1,0 +1,4 @@
+# Parts specific to the community-maintained Czech storefront.
+/src/auth/http.ts @vsem-azamat
+/tests/http-auth.test.ts @vsem-azamat
+/tests/fixtures/nutrition/czech-olives.json @vsem-azamat

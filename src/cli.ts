@@ -8,13 +8,25 @@
  * {@link BrowserAuthBackend}. Results print as JSON to stdout; coded errors go
  * to stderr with a non-zero exit. Per the SDK's ethics ceiling, `checkout` only
  * hands back a payment URL — a human completes payment in a browser.
+ *
+ * The storefront comes from `--market <code>` or the `TESCO_MARKET` env var
+ * (a custom one from `--market-config <file>` or `TESCO_MARKET_CONFIG`)
+ * (default `uk`); each market keeps its own session file. `--auth` /
+ * `TESCO_AUTH` picks how sessions are renewed (`browser` default, `http`).
  */
 
-import { Command, InvalidArgumentError } from "commander";
-import { BrowserAuthBackend } from "./auth/browser/playwright.js";
+import { Command, InvalidArgumentError, Option } from "commander";
+import { type AuthBackendKind, createAuthBackend, parseAuthBackendKind } from "./auth/backends.js";
 import type { NutritionFilter } from "./index.js";
 import { Basketeer, BasketeerError, FileTokenStore } from "./index.js";
 import { isMainModule } from "./is-main.js";
+import {
+  DEFAULT_MARKET,
+  loadMarketConfig,
+  type Market,
+  marketSupportNotice,
+  resolveMarket,
+} from "./market.js";
 
 /** Pretty-print any JSON-serialisable value to stdout. */
 function emit(value: unknown): void {
@@ -36,23 +48,93 @@ export function nonNegativeNumber(value: string): number {
   return n;
 }
 
-const store = new FileTokenStore();
-
-/** Resume a persisted session for authenticated commands (refreshing if able). */
-function authedClient(): Promise<Basketeer> {
-  return Basketeer.resume({ store, authBackend: new BrowserAuthBackend() });
+/** commander parser: a known market code, else a usage error. */
+export function marketArg(value: string): Market {
+  try {
+    return resolveMarket(value);
+  } catch (err) {
+    throw new InvalidArgumentError((err as Error).message);
+  }
 }
 
-/** Anonymous client for read-only commands (no session required). */
-function readClient(): Basketeer {
-  return new Basketeer();
+/** commander parser: a valid custom market file, else a usage error. */
+export function marketConfigArg(path: string): Market {
+  try {
+    return loadMarketConfig(path);
+  } catch (err) {
+    throw new InvalidArgumentError((err as Error).message);
+  }
+}
+
+/** commander parser: a known auth backend kind, else a usage error. */
+export function authArg(value: string): AuthBackendKind {
+  try {
+    return parseAuthBackendKind(value);
+  } catch (err) {
+    throw new InvalidArgumentError((err as Error).message);
+  }
 }
 
 const program = new Command();
 program
   .name("basketeer")
   .description("Typed CLI for Tesco grocery automation (basketeer).")
-  .showHelpAfterError();
+  .addOption(
+    new Option("--market <code>", "Tesco storefront: uk, or cz (community-maintained)")
+      .env("TESCO_MARKET")
+      .argParser(marketArg)
+      .default(DEFAULT_MARKET, "uk"),
+  )
+  .addOption(
+    new Option("--market-config <file>", "custom market JSON file (untested, no guarantees)")
+      .env("TESCO_MARKET_CONFIG")
+      .argParser(marketConfigArg)
+      .conflicts("market"),
+  )
+  .addOption(
+    new Option("--auth <backend>", "session renewal: browser (Chrome) or http (browserless)")
+      .env("TESCO_AUTH")
+      .argParser(authArg)
+      .default("browser"),
+  )
+  .showHelpAfterError()
+  .hook("preAction", () => {
+    const notice = marketSupportNotice(market());
+    if (notice) process.stderr.write(`basketeer: ${notice}\n`);
+  });
+
+/** The market selected by `--market-config` or `--market` (or their env vars). */
+function market(): Market {
+  const { market: builtIn, marketConfig } = program.opts<{
+    market: Market;
+    marketConfig?: Market;
+  }>();
+  return marketConfig ?? builtIn;
+}
+
+/**
+ * Session-persisting options for the selected market. `auth` overrides the
+ * `--auth` backend; sign-in always passes `"browser"`, since `--auth` only
+ * chooses how an existing session is renewed.
+ */
+function sessionOptions(auth = program.opts<{ auth: AuthBackendKind }>().auth) {
+  const m = market();
+  return {
+    market: m,
+    store: new FileTokenStore({ market: m }),
+    authBackend: createAuthBackend(auth, m),
+  };
+}
+
+/** Resume a persisted session for authenticated commands (refreshing if able). */
+function authedClient(): Promise<Basketeer> {
+  return Basketeer.resume(sessionOptions());
+}
+
+/** Anonymous client for read-only commands (no session required). */
+function readClient(): Basketeer {
+  return new Basketeer({ market: market() });
+}
 
 // --- auth -------------------------------------------------------------------
 
@@ -60,10 +142,11 @@ program
   .command("login")
   .description("Open a real Chrome to sign in, then persist the harvested session.")
   .action(async () => {
-    const client = new Basketeer({ store, authBackend: new BrowserAuthBackend() });
+    const client = new Basketeer(sessionOptions("browser"));
     const session = await client.login();
     emit({
       ok: true,
+      market: client.market.code,
       customerUuid: session.customerUuid,
       expiresAt: session.accessTokenExpiry ?? null,
     });
