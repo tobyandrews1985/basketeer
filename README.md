@@ -254,7 +254,7 @@ await client.lists.addItems(list!.id, [{ tpnb: "100000001", quantity: 2 }]); // 
 const { items } = await client.lists.read(list!.id);                         // [{ tpnb, quantity, checked }]
 ```
 
-`lists.setItems` **replaces the whole list** (anything not sent is removed), so prefer `addItems`. There is deliberately no delete: deleting a list broke the app's "Default list" for hours in testing. Details, plus a store-stock field that was found but is not reliable: [docs/api.md#shopping-lists](https://github.com/tobyandrews1985/basketeer/blob/main/docs/api.md#shopping-lists).
+`lists.setItems` **replaces the whole list** (anything not sent is removed), so prefer `addItems`. There is deliberately no delete: deleting a list broke the app's "Default list" for hours in testing. Details, plus a product stock field that reports the online delivery store rather than in-store stock: [docs/api.md#shopping-lists](https://github.com/tobyandrews1985/basketeer/blob/main/docs/api.md#shopping-lists).
 
 ## MCP server (for AI agents)
 

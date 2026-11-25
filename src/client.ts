@@ -562,7 +562,7 @@ export class Basketeer {
 
   /**
    * The account's Tesco shopping lists. The app's in-store list is the
-   * `INSTORE` list named "Default list"; lists are per store (`locationUuid`).
+   * `INSTORE` list named "Default list". `locationUuid` is accepted but appears to be ignored.
    * Items are keyed by product **TPNB**, not the tpnc `sku`. Every op defaults
    * to `listType: "INSTORE"`. There is deliberately no delete — see docs/api.md.
    */

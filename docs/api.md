@@ -134,7 +134,7 @@ This is a client-side heuristic, not a Tesco "orders after" facility. Custom `co
 `client.lists` reads and writes the account's Tesco shopping lists — the lists in the Tesco app, separate from the online basket. The operations were found by probing the gateway (introspection is off) and verified against a live account; treat them as reverse-engineered like everything else here.
 
 - **The app's in-store list** is the `INSTORE` list named `"Default list"` (`DEFAULT_SHOPPING_LIST_NAME`). The other kinds are `SHARED` and `CUSTOM` (`SHOPPING_LIST_TYPES`). Every op defaults to `INSTORE`.
-- **Lists are per store.** `lists.get` takes an optional `locationUuid`; the account's own store is on the `profile { storeId locationUuid }` query. If `lists.get()` returns nothing, open the in-store list in the Tesco app once so it creates one.
+- **Lists belong to the account.** `getShoppingLists` accepts a `locationUuid` (passed through by `lists.get`), but it appears to be ignored: every `locationUuid` tried returned the same lists. If `lists.get()` returns nothing, open the in-store list in the Tesco app once so it creates one.
 - **Items are keyed by TPNB**, not the tpnc `sku` used by the basket. Get it from `Product.tpnb` / `SearchResult.tpnb`. `checked` (ticked off in the app) can be `null` on older lists.
 
 ```ts
@@ -154,7 +154,7 @@ await client.lists.rename(list!.id, "Weekly shop");
 
 | API | Returns | Notes |
 | --- | --- | --- |
-| `lists.get(listType?, { locationUuid?, page?, limit?, offset? })` | `ShoppingListSummary[]` | `getShoppingLists`. The plain `shoppingLists` field always returns null; it is not used. |
+| `lists.get(listType?, { locationUuid?, page?, limit?, offset? })` | `ShoppingListSummary[]` | `getShoppingLists`. `locationUuid` is accepted but appears to be ignored. The plain `shoppingLists` field always returns null; it is not used. |
 | `lists.read(listId, listType?)` | `ShoppingList` | Throws `NotFoundError` when Tesco returns no list. |
 | `lists.setItems(listId, items, listType?)` | `ShoppingList` | `updateShoppingListItem`. **Replaces the whole list.** `checked` defaults to `false`. |
 | `lists.addItems(listId, items, listType?)` | `ShoppingList` | Two requests: read, `mergeShoppingListItems`, then `setItems`. If the read fails, nothing is written. Not safe under concurrent edits. |
@@ -168,7 +168,7 @@ Quantities are finite numbers `> 0` (Tesco's field is a `Float`). Tesco's input 
 
 ### Store stock (not wrapped)
 
-Probing also found a per-store stock field on products. It is documented here but not wrapped, because it did not prove reliable:
+Probing also found a stock field on products. It is documented here but not wrapped, because it does **not** give in-store stock:
 
 ```graphql
 product(tpnc: "…") {
@@ -178,7 +178,13 @@ product(tpnc: "…") {
 }
 ```
 
-`status` is `IN_STOCK` or `OUT_OF_STOCK`; the union also has a `RewardsProductAvailabilityType` member. **Caveat:** the answer did not match the account's selected store (the app showed items as out of stock or not stocked that this reported `IN_STOCK`), and `location.stores` came back empty. No argument, header, or cookie that was tried selected the store.
+`status` is `IN_STOCK` or `OUT_OF_STOCK`; the union also has a `RewardsProductAvailabilityType` member.
+
+- **It reports the account's online fulfilment store**, not the store the app uses for its in-store list. To see which store that is, read `basket { storeId locationUuid }` or `profile { storeId locationUuid }` (both return the same store). Where the delivery store is a bigger store than the shopper's local one, this says `IN_STOCK` for items the app shows as out of stock or "not stocked at this store".
+- **Another store can't be selected.** No argument on `product`, `availability` or `location` picks a store. Sending a different store's id or `locationUuid` in request headers (`storeid`, `store-id`, `x-store-id`, `location-uuid`, `locationuuid`) changes nothing, and `location.stores` always comes back empty.
+- Store numbers (`storeId`) are the same numbers as the `bID` values on tesco.com's store locator.
+
+In short, per-store (in-store) stock is not available through `xapi`.
 
 ### CLI
 

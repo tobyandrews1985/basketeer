@@ -285,7 +285,7 @@ export interface NutritionSort {
 
 /**
  * Tesco shopping-list kinds. The Tesco app's in-store list ("Default list") is
- * an `INSTORE` list; lists are per store (`locationUuid`).
+ * an `INSTORE` list.
  */
 export type ShoppingListType = "INSTORE" | "SHARED" | "CUSTOM";
 
