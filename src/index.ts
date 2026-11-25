@@ -67,6 +67,11 @@ export type {
   SearchPage,
   SearchResult,
   Session,
+  ShoppingList,
+  ShoppingListItem,
+  ShoppingListItemInput,
+  ShoppingListSummary,
+  ShoppingListType,
   Slot,
 } from "./models.js";
 // Nutrition
@@ -76,12 +81,16 @@ export type { FulfilmentType, OrderContext } from "./operations.js";
 export {
   CHECKOUT_URL,
   categoryFacet,
+  DEFAULT_SHOPPING_LIST_NAME,
   ENDPOINT,
   FULFILMENT_TYPE,
   PENDING_ORDER_CONTEXTS,
   PREVIOUS_ORDER_CONTEXTS,
   PUBLIC_API_KEY,
+  SHOPPING_LIST_TYPES,
 } from "./operations.js";
+// Shopping lists
+export { mergeShoppingListItems } from "./parsers.js";
 // Storage seam
 export { defaultSessionPath, FileTokenStore } from "./store/file-store.js";
 export { MemoryTokenStore } from "./store/memory-store.js";

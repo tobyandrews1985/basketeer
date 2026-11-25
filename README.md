@@ -149,6 +149,7 @@ The full grocery lifecycle, typed end to end:
 - **Basket** — `add`, `set`, `remove`, `get`
 - **Slots** — delivery and collection: `list` / `book` / `release`
 - **Orders** — `list`, `amend`, `cancel`, `lastFulfilled` (reorder)
+- **Shopping lists** — the Tesco app's lists (the in-store "Default list"): `get`, `read`, `addItems`, `setItems`, `create`, `rename`
 - **Checkout** — `checkout()` returns the payment URL; it never pays
 
 → Full reference (signatures, return types, the error catalogue, and where the browser runs): **[docs/api.md](https://github.com/tobyandrews1985/basketeer/blob/main/docs/api.md)**
@@ -243,9 +244,21 @@ let page = await client.orders.history();               // { orders, nextOffset 
 while (page.nextOffset !== null) page = await client.orders.history({ offset: page.nextOffset });
 ```
 
+## Shopping lists
+
+The Tesco app's in-store list is the `INSTORE` list named "Default list". Items are keyed by **TPNB** (`Product.tpnb`), not the tpnc `sku`.
+
+```ts
+const list = (await client.lists.get()).find((l) => l.name === "Default list");
+await client.lists.addItems(list!.id, [{ tpnb: "100000001", quantity: 2 }]); // read → merge → write
+const { items } = await client.lists.read(list!.id);                         // [{ tpnb, quantity, checked }]
+```
+
+`lists.setItems` **replaces the whole list** (anything not sent is removed), so prefer `addItems`. There is deliberately no delete: deleting a list broke the app's "Default list" for hours in testing. Details, plus a store-stock field that was found but is not reliable: [docs/api.md#shopping-lists](https://github.com/tobyandrews1985/basketeer/blob/main/docs/api.md#shopping-lists).
+
 ## MCP server (for AI agents)
 
-A stdio MCP server ships as the `basketeer-mcp` bin, exposing tools (`basketeer_search`, `basketeer_search_by_nutrition`, `basketeer_nutrition`, `basketeer_basket_set`, `basketeer_slots_list`, `basketeer_slots_book`, `basketeer_slots_release`, `basketeer_orders_list`, `basketeer_orders_amend`, `basketeer_orders_amend_discard`, `basketeer_checkout`, …) so Claude Desktop or any MCP client can shop. Read-only tools carry `readOnlyHint`; mutating ones carry `destructiveHint`, and `basketeer_orders_cancel` / `basketeer_orders_amend_discard` / `basketeer_checkout` take a two-step confirm token. To change a placed order, `basketeer_orders_amend` opens it, the basket tools then edit it, and the changes are saved when the human completes checkout. `basketeer_checkout` returns the payment URL for the human. There is no "pay" tool. The search tools take an optional `select` — an array of dot-notation paths (e.g. `["sku", "title", "price.actual", "promotions.description"]`) that trims each result to just those fields, keeping token usage down in agent loops.
+A stdio MCP server ships as the `basketeer-mcp` bin, exposing tools (`basketeer_search`, `basketeer_search_by_nutrition`, `basketeer_nutrition`, `basketeer_basket_set`, `basketeer_slots_list`, `basketeer_slots_book`, `basketeer_slots_release`, `basketeer_orders_list`, `basketeer_orders_amend`, `basketeer_orders_amend_discard`, `basketeer_lists_get`, `basketeer_list_add_items`, `basketeer_checkout`, …) so Claude Desktop or any MCP client can shop. Read-only tools carry `readOnlyHint`; mutating ones carry `destructiveHint`, and `basketeer_orders_cancel` / `basketeer_orders_amend_discard` / `basketeer_list_set_items` / `basketeer_checkout` take a two-step confirm token. To change a placed order, `basketeer_orders_amend` opens it, the basket tools then edit it, and the changes are saved when the human completes checkout. `basketeer_checkout` returns the payment URL for the human. There is no "pay" tool. The search tools take an optional `select` — an array of dot-notation paths (e.g. `["sku", "title", "price.actual", "promotions.description"]`) that trims each result to just those fields, keeping token usage down in agent loops.
 
 ```jsonc
 // claude_desktop_config.json — run `basketeer login` once first so it has a session.
@@ -274,6 +287,7 @@ basketeer favourites
 basketeer basket add 258114107 1     # increment;  basket set <sku> <qty> for exact
 basketeer slots                      # --collection for click-and-collect
 basketeer orders list
+basketeer lists get                  # the app's shopping lists; lists read <id>, lists add <id> <tpnb> [qty]
 basketeer checkout                   # prints the payment URL; you finish in a browser
 basketeer --market cz search "olivy" # any command against another storefront (or TESCO_MARKET=cz)
 basketeer --market-config ie.json search milk # a custom market: untested, no guarantees

@@ -35,6 +35,7 @@ import type { Basket, NutritionFilter } from "./index.js";
 import { Basketeer, BasketeerError, FileTokenStore } from "./index.js";
 import { isMainModule } from "./is-main.js";
 import { marketFromEnv, marketSupportNotice } from "./market.js";
+import { SHOPPING_LIST_TYPES } from "./operations.js";
 import { PRODUCT_FIELDS, projectResults, SEARCH_RESULT_FIELDS } from "./select.js";
 
 /**
@@ -339,6 +340,77 @@ export function buildServer(client: Basketeer): McpServer {
     {},
     { readOnlyHint: true },
     () => run(() => client.orders.lastFulfilled()),
+  );
+
+  // --- shopping lists (requires a saved session) ---------------------------
+
+  const listType = z
+    .enum(SHOPPING_LIST_TYPES)
+    .optional()
+    .describe("List kind; default INSTORE (the app's in-store list, named 'Default list').");
+  const listItems = z
+    .array(
+      z.object({
+        tpnb: z
+          .string()
+          .min(1)
+          .describe("Product TPNB (the search/product `tpnb` field, not `sku`)."),
+        quantity: z.number().positive(),
+        checked: z.boolean().optional().describe("Ticked off; default false."),
+      }),
+    )
+    .describe("List lines, keyed by TPNB.");
+
+  server.tool(
+    "basketeer_lists_get",
+    "List the account's Tesco shopping lists ({ id, name }). The Tesco app's in-store list is the " +
+      "INSTORE list named 'Default list'. Requires a saved session.",
+    { listType },
+    { readOnlyHint: true },
+    ({ listType }) => run(() => client.lists.get(listType)),
+  );
+
+  server.tool(
+    "basketeer_list_read",
+    "Read one shopping list and its items. Item `tpnb` is the product TPNB; `checked` is whether " +
+      "it is ticked off (null on older lists).",
+    { listId: z.string().min(1).describe("A list id from basketeer_lists_get."), listType },
+    { readOnlyHint: true },
+    ({ listId, listType }) => run(() => client.lists.read(listId, listType)),
+  );
+
+  server.tool(
+    "basketeer_list_add_items",
+    "Add items to a shopping list, keeping everything already on it (reads, merges, writes). " +
+      "An unticked item gets the quantity added; a ticked (bought) item is reset to the new quantity and unticked.",
+    { listId: z.string().min(1), items: listItems.nonempty(), listType },
+    { readOnlyHint: false, destructiveHint: false },
+    ({ listId, items, listType }) => run(() => client.lists.addItems(listId, items, listType)),
+  );
+
+  server.tool(
+    "basketeer_list_set_items",
+    "REPLACE a shopping list's entire contents with `items`: anything not sent is removed " +
+      "(an empty array clears the list). Prefer basketeer_list_add_items. Two-step: call once to get a " +
+      "confirmToken and a preview of the current list; call again with confirm set to that token.",
+    { listId: z.string().min(1), items: listItems, listType, confirm: z.string().optional() },
+    { readOnlyHint: false, destructiveHint: true },
+    ({ listId, items, listType, confirm }) =>
+      run(async () => {
+        const token = confirmToken(`list-set:${listId}:${JSON.stringify(items)}`);
+        if (confirm !== token) {
+          return {
+            requiresConfirmation: true,
+            action: "replace_list_items",
+            listId,
+            current: await client.lists.read(listId, listType),
+            replacement: items,
+            confirmToken: token,
+            hint: "This replaces the whole list; items not in `replacement` are removed. Call again with confirm set to this confirmToken to proceed.",
+          };
+        }
+        return client.lists.setItems(listId, items, listType);
+      }),
   );
 
   // --- checkout (boundary: stops at the payment URL) ------------------------

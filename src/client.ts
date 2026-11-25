@@ -20,6 +20,10 @@ import type {
   SearchPage,
   SearchResult,
   Session,
+  ShoppingList,
+  ShoppingListItemInput,
+  ShoppingListSummary,
+  ShoppingListType,
   Slot,
 } from "./models.js";
 import { filterByNutrition } from "./nutrition.js";
@@ -30,14 +34,18 @@ import {
   type OrderContext,
   PENDING_ORDER_CONTEXTS,
   PREVIOUS_ORDER_CONTEXTS,
+  SHOPPING_LIST_TYPES,
 } from "./operations.js";
 import {
   isoDate,
+  mergeShoppingListItems,
   parseBasket,
   parseBookedSlot,
   parseOrder,
   parseProduct,
   parseProductNode,
+  parseShoppingList,
+  parseShoppingLists,
   parseSlot,
   type Raw,
 } from "./parsers.js";
@@ -46,6 +54,7 @@ import {
   CANCEL_AMEND,
   CANCEL_ORDER,
   COLLECTION_SLOTS,
+  createShoppingListQuery,
   DELIVERY_SLOTS,
   FULFILMENT,
   GET_BASKET,
@@ -56,8 +65,12 @@ import {
   GET_PRODUCT,
   GET_UPCOMING_ORDERS,
   getProductsQuery,
+  getShoppingListQuery,
+  getShoppingListsQuery,
+  renameShoppingListQuery,
   SEARCH,
   UPDATE_BASKET,
+  updateShoppingListItemQuery,
 } from "./queries.js";
 import { SessionManager } from "./session-manager.js";
 import type { TokenStore } from "./store/types.js";
@@ -110,6 +123,23 @@ function reqInt(v: number | undefined, name: string, min: number): void {
  */
 function reqQty(v: number, name: string): void {
   if (!Number.isFinite(v) || v < 0) throw new RangeError(`${name} must be a finite number >= 0`);
+}
+
+function reqListType(v: string): void {
+  if (!(SHOPPING_LIST_TYPES as readonly string[]).includes(v))
+    throw new RangeError(`listType must be one of ${SHOPPING_LIST_TYPES.join(", ")}`);
+}
+
+function reqNonEmpty(v: string, name: string): void {
+  if (typeof v !== "string" || v.trim() === "")
+    throw new RangeError(`${name} must be a non-empty string`);
+}
+
+/** A list line: non-empty TPNB, finite quantity > 0 (fractional allowed for loose items). */
+function reqListItem(item: ShoppingListItemInput): void {
+  reqNonEmpty(item.tpnb, "tpnb");
+  if (!Number.isFinite(item.quantity) || item.quantity <= 0)
+    throw new RangeError("quantity must be a finite number > 0");
 }
 
 function normaliseItem(item: BasketItemInput): Record<string, unknown> {
@@ -526,6 +556,150 @@ export class Basketeer {
       variables: { orderNo },
       mfeName: MFE.orders,
     });
+  }
+
+  // --- shopping lists (requires auth) ---------------------------------------
+
+  /**
+   * The account's Tesco shopping lists. The app's in-store list is the
+   * `INSTORE` list named "Default list"; lists are per store (`locationUuid`).
+   * Items are keyed by product **TPNB**, not the tpnc `sku`. Every op defaults
+   * to `listType: "INSTORE"`. There is deliberately no delete — see docs/api.md.
+   */
+  readonly lists = {
+    /** The account's lists of one type (default INSTORE), as `{ id, name }`. */
+    get: (
+      listType: ShoppingListType = "INSTORE",
+      opts: { locationUuid?: string; page?: number; limit?: number; offset?: number } = {},
+    ): Promise<ShoppingListSummary[]> => this.getShoppingLists(listType, opts),
+    /** Read one list and its items. Throws `NotFoundError` if Tesco returns no list. */
+    read: (listId: string, listType: ShoppingListType = "INSTORE"): Promise<ShoppingList> =>
+      this.readShoppingList(listId, listType),
+    /**
+     * **REPLACES the whole list** with `items`: any item not sent is removed,
+     * and an empty array clears the list. To add without losing what is
+     * already there, use `addItems`.
+     */
+    setItems: (
+      listId: string,
+      items: readonly ShoppingListItemInput[],
+      listType: ShoppingListType = "INSTORE",
+    ): Promise<ShoppingList> => this.setShoppingListItems(listId, items, listType),
+    /**
+     * Read the list, merge `items` in, and write the result back (two
+     * requests) — see {@link mergeShoppingListItems}. Not safe under
+     * concurrent edits (e.g. someone ticking items in the app at that moment).
+     */
+    addItems: async (
+      listId: string,
+      items: readonly ShoppingListItemInput[],
+      listType: ShoppingListType = "INSTORE",
+    ): Promise<ShoppingList> => {
+      for (const item of items) reqListItem(item);
+      const current = await this.readShoppingList(listId, listType);
+      return this.setShoppingListItems(
+        listId,
+        mergeShoppingListItems(current.items, items),
+        listType,
+      );
+    },
+    /** Create an empty list. Tesco rejects a duplicate name ("List name duplicated"). */
+    create: (name: string, listType: ShoppingListType = "INSTORE"): Promise<ShoppingList> =>
+      this.createShoppingList(name, listType),
+    /** Rename a list. */
+    rename: (
+      listId: string,
+      name: string,
+      listType: ShoppingListType = "INSTORE",
+    ): Promise<ShoppingListSummary> => this.renameShoppingList(listId, name, listType),
+  };
+
+  private listOp<T>(operationName: string, query: string): Promise<T> {
+    return this.transport.execute<T>({ operationName, query, variables: {}, mfeName: MFE.lists });
+  }
+
+  private async getShoppingLists(
+    listType: ShoppingListType,
+    opts: { locationUuid?: string; page?: number; limit?: number; offset?: number },
+  ): Promise<ShoppingListSummary[]> {
+    reqListType(listType);
+    reqInt(opts.page, "page", 1);
+    reqInt(opts.limit, "limit", 1);
+    reqInt(opts.offset, "offset", 0);
+    const data = await this.listOp<{ getShoppingLists?: Raw }>(
+      "GetShoppingLists",
+      getShoppingListsQuery(listType, opts),
+    );
+    return parseShoppingLists(data.getShoppingLists);
+  }
+
+  private async readShoppingList(
+    listId: string,
+    listType: ShoppingListType,
+  ): Promise<ShoppingList> {
+    reqListType(listType);
+    reqNonEmpty(listId, "listId");
+    const data = await this.listOp<{ shoppingList?: Raw | null }>(
+      "GetShoppingList",
+      getShoppingListQuery(listType, listId),
+    );
+    // Never return an empty list for a missing one: addItems would write that
+    // "empty" list back over the real one.
+    if (!data.shoppingList) throw new NotFoundError(`No ${listType} shopping list ${listId}`);
+    return parseShoppingList(data.shoppingList);
+  }
+
+  private async setShoppingListItems(
+    listId: string,
+    items: readonly ShoppingListItemInput[],
+    listType: ShoppingListType,
+  ): Promise<ShoppingList> {
+    reqListType(listType);
+    reqNonEmpty(listId, "listId");
+    for (const item of items) reqListItem(item);
+    const lines = items.map((i) => ({
+      tpnb: String(i.tpnb),
+      quantity: i.quantity,
+      checked: i.checked ?? false,
+    }));
+    const data = await this.listOp<{ updateShoppingListItem?: Raw | null }>(
+      "UpdateShoppingListItem",
+      updateShoppingListItemQuery(listType, listId, lines),
+    );
+    if (!data.updateShoppingListItem)
+      throw new BasketeerError("UpdateShoppingListItem returned no list");
+    return parseShoppingList(data.updateShoppingListItem);
+  }
+
+  private async createShoppingList(
+    name: string,
+    listType: ShoppingListType,
+  ): Promise<ShoppingList> {
+    reqListType(listType);
+    reqNonEmpty(name, "name");
+    const data = await this.listOp<{ createShoppingList?: Raw | null }>(
+      "CreateShoppingList",
+      createShoppingListQuery(listType, name),
+    );
+    if (!data.createShoppingList) throw new BasketeerError("CreateShoppingList returned no list");
+    return parseShoppingList(data.createShoppingList);
+  }
+
+  private async renameShoppingList(
+    listId: string,
+    name: string,
+    listType: ShoppingListType,
+  ): Promise<ShoppingListSummary> {
+    reqListType(listType);
+    reqNonEmpty(listId, "listId");
+    reqNonEmpty(name, "name");
+    const data = await this.listOp<{ updateShoppingList?: Raw | null }>(
+      "UpdateShoppingList",
+      renameShoppingListQuery(listType, listId, name),
+    );
+    if (!data.updateShoppingList) throw new BasketeerError("UpdateShoppingList returned no list");
+    const list = parseShoppingList(data.updateShoppingList);
+    return { id: list.id || listId, name: list.name ?? name };
   }
 
   // --- checkout (boundary: pure HTTP up to payment) -------------------------

@@ -285,3 +285,64 @@ mutation Fulfilment($slotId: ID, $action: SlotActions) {
     __typename
   }
 }`.trim();
+
+// ---- shopping lists ----------------------------------------------------------
+//
+// Found by probing the gateway (introspection is off), so the input/enum type
+// names needed to declare `$variables` are unknown. Arguments are inlined as
+// GraphQL literals instead: strings go through gqlString(), the list type is
+// checked against a whitelist by the client, and numbers are validated ints/
+// finite floats. Plain `shoppingLists` always returns null — use getShoppingLists.
+
+/** A GraphQL string literal. JSON string escaping is valid GraphQL syntax. */
+export function gqlString(value: string): string {
+  return JSON.stringify(value);
+}
+
+const LIST_ITEM_FIELDS = "items { id quantity checked }";
+
+export function getShoppingListsQuery(
+  listType: string,
+  opts: { locationUuid?: string; page?: number; limit?: number; offset?: number } = {},
+): string {
+  const args = [`listType: ${listType}`];
+  if (opts.locationUuid !== undefined) args.push(`locationUuid: ${gqlString(opts.locationUuid)}`);
+  if (opts.page !== undefined) args.push(`page: ${opts.page}`);
+  if (opts.limit !== undefined) args.push(`limit: ${opts.limit}`);
+  if (opts.offset !== undefined) args.push(`offset: ${opts.offset}`);
+  return `query GetShoppingLists {
+  getShoppingLists(${args.join(", ")}) { shoppingLists { id name } }
+}`;
+}
+
+export function getShoppingListQuery(listType: string, listId: string): string {
+  return `query GetShoppingList {
+  shoppingList(listType: ${listType}, listId: ${gqlString(listId)}) { id name ${LIST_ITEM_FIELDS} }
+}`;
+}
+
+/** Replaces the WHOLE list with `items` — anything not sent is removed. */
+export function updateShoppingListItemQuery(
+  listType: string,
+  listId: string,
+  items: readonly { tpnb: string; quantity: number; checked: boolean }[],
+): string {
+  const listItems = items
+    .map((i) => `{ tpnb: ${gqlString(i.tpnb)}, quantity: ${i.quantity}, checked: ${i.checked} }`)
+    .join(", ");
+  return `mutation UpdateShoppingListItem {
+  updateShoppingListItem(listType: ${listType}, listId: ${gqlString(listId)}, listItems: [${listItems}]) { id ${LIST_ITEM_FIELDS} }
+}`;
+}
+
+export function createShoppingListQuery(listType: string, name: string): string {
+  return `mutation CreateShoppingList {
+  createShoppingList(listType: ${listType}, name: ${gqlString(name)}) { id name items { id } }
+}`;
+}
+
+export function renameShoppingListQuery(listType: string, listId: string, name: string): string {
+  return `mutation UpdateShoppingList {
+  updateShoppingList(listType: ${listType}, listId: ${gqlString(listId)}, name: ${gqlString(name)}) { id name }
+}`;
+}

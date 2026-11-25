@@ -19,6 +19,10 @@ import type {
   ProductQuantityRules,
   Promotion,
   SearchResult,
+  ShoppingList,
+  ShoppingListItem,
+  ShoppingListItemInput,
+  ShoppingListSummary,
   Slot,
 } from "./models.js";
 import { parseNutrition } from "./nutrition.js";
@@ -223,6 +227,47 @@ export function parseOrder(v: unknown): Order {
     items,
     raw: v,
   };
+}
+
+export function parseShoppingLists(v: unknown): ShoppingListSummary[] {
+  return objs(obj(v).shoppingLists)
+    .filter((l) => l.id != null)
+    .map((l) => ({ id: String(l.id), name: str(l.name) ?? "" }));
+}
+
+export function parseShoppingList(v: unknown): ShoppingList {
+  const node = obj(v);
+  const items: ShoppingListItem[] = objs(node.items)
+    .filter((it) => it.id != null)
+    .map((it) => ({
+      tpnb: String(it.id),
+      quantity: num(it.quantity) ?? 0,
+      checked: bool(it.checked),
+    }));
+  return { id: id(node.id) ?? "", name: str(node.name), items, raw: v ?? null };
+}
+
+/**
+ * Merge `additions` into a list's current items, for a read-merge-write
+ * (`lists.addItems`). Every current item is kept. An addition for an unticked
+ * item increments its quantity; for a ticked item (already bought) it replaces
+ * the quantity and unticks it; otherwise it is appended. `checked: null` (older
+ * lists) is treated as unticked. Duplicate TPNBs in `additions` accumulate.
+ */
+export function mergeShoppingListItems(
+  current: readonly ShoppingListItem[],
+  additions: readonly ShoppingListItemInput[],
+): Required<ShoppingListItemInput>[] {
+  const merged = new Map<string, Required<ShoppingListItemInput>>();
+  for (const it of current) {
+    merged.set(it.tpnb, { tpnb: it.tpnb, quantity: it.quantity, checked: it.checked === true });
+  }
+  for (const add of additions) {
+    const cur = merged.get(add.tpnb);
+    const quantity = cur && !cur.checked ? cur.quantity + add.quantity : add.quantity;
+    merged.set(add.tpnb, { tpnb: add.tpnb, quantity, checked: add.checked ?? false });
+  }
+  return [...merged.values()];
 }
 
 /**

@@ -282,3 +282,40 @@ export interface NutritionSort {
   by: MacroFilterKey | (string & {}); // a MacroFilterKey or a micronutrient name
   dir?: "asc" | "desc";
 }
+
+/**
+ * Tesco shopping-list kinds. The Tesco app's in-store list ("Default list") is
+ * an `INSTORE` list; lists are per store (`locationUuid`).
+ */
+export type ShoppingListType = "INSTORE" | "SHARED" | "CUSTOM";
+
+/** One entry from `lists.get`. */
+export interface ShoppingListSummary {
+  id: string;
+  name: string;
+}
+
+export interface ShoppingListItem {
+  /** The product TPNB (not the tpnc `sku` used by basket ops). */
+  tpnb: string;
+  quantity: number;
+  /** Ticked off in the app. `null` on items from older lists that never set it. */
+  checked: boolean | null;
+}
+
+export interface ShoppingList {
+  id: string;
+  /** Null where the operation doesn't return it (item writes). */
+  name: string | null;
+  items: ShoppingListItem[];
+  raw: unknown;
+}
+
+/** One line for `lists.setItems` / `lists.addItems`. */
+export interface ShoppingListItemInput {
+  /** The product TPNB — see `Product.tpnb` / `SearchResult.tpnb`. */
+  tpnb: string;
+  quantity: number;
+  /** Default false. */
+  checked?: boolean;
+}

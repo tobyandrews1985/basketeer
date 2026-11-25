@@ -28,6 +28,7 @@ export const MFE = {
   slots: "mfe-slots",
   orders: "mfe-orders",
   favourites: "mfe-favourites",
+  lists: "mfe-orchestrator",
 } as const;
 
 /** One context for the order queries — an order type plus the statuses to include. */
@@ -55,6 +56,12 @@ export const FULFILMENT_TYPE = {
 } as const;
 
 export type FulfilmentType = (typeof FULFILMENT_TYPE)[keyof typeof FULFILMENT_TYPE];
+
+/** Shopping-list kinds accepted by the `lists` ops. */
+export const SHOPPING_LIST_TYPES = ["INSTORE", "SHARED", "CUSTOM"] as const;
+
+/** The name the Tesco app gives the account's in-store (INSTORE) list. */
+export const DEFAULT_SHOPPING_LIST_NAME = "Default list";
 
 /**
  * Build a category `facet` for {@link Basketeer.browseCategory} from a
