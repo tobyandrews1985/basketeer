@@ -17,8 +17,8 @@
 
 import { Command, InvalidArgumentError, Option } from "commander";
 import { type AuthBackendKind, createAuthBackend, parseAuthBackendKind } from "./auth/backends.js";
-import type { NutritionFilter } from "./index.js";
-import { Basketeer, BasketeerError, FileTokenStore } from "./index.js";
+import type { NutritionFilter, ShoppingListType } from "./index.js";
+import { Basketeer, BasketeerError, FileTokenStore, SHOPPING_LIST_TYPES } from "./index.js";
 import { isMainModule } from "./is-main.js";
 import {
   DEFAULT_MARKET,
@@ -45,6 +45,13 @@ export function nonNegativeInt(value: string): number {
 export function nonNegativeNumber(value: string): number {
   const n = Number(value);
   if (!Number.isFinite(n) || n < 0) throw new InvalidArgumentError("must be a non-negative number");
+  return n;
+}
+
+/** commander parser: a finite number > 0 (decimals allowed), else a usage error. */
+export function positiveNumber(value: string): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) throw new InvalidArgumentError("must be a number > 0");
   return n;
 }
 
@@ -319,6 +326,69 @@ orders
       unavailable,
       basket,
     });
+  });
+
+// --- shopping lists ---------------------------------------------------------
+
+const lists = program
+  .command("lists")
+  .description("Tesco shopping lists (the app's in-store list is INSTORE 'Default list').");
+
+const listTypeOption = () =>
+  new Option("--type <listType>", "list kind")
+    .choices(SHOPPING_LIST_TYPES)
+    .default("INSTORE" as ShoppingListType);
+
+lists
+  .command("get")
+  .description("List the account's shopping lists.")
+  .addOption(listTypeOption())
+  .action(async (opts: { type: ShoppingListType }) => {
+    const client = await authedClient();
+    emit(await client.lists.get(opts.type));
+  });
+
+lists
+  .command("read")
+  .description("Show one list and its items (keyed by TPNB).")
+  .argument("<listId>", "list id from `lists get`")
+  .addOption(listTypeOption())
+  .action(async (listId: string, opts: { type: ShoppingListType }) => {
+    const client = await authedClient();
+    emit(await client.lists.read(listId, opts.type));
+  });
+
+lists
+  .command("add")
+  .description("Add a product to a list, keeping what is already on it.")
+  .argument("<listId>", "list id from `lists get`")
+  .argument("<tpnb>", "product TPNB (not the tpnc sku)")
+  .argument("[qty]", "quantity to add", positiveNumber, 1)
+  .addOption(listTypeOption())
+  .action(async (listId: string, tpnb: string, qty: number, opts: { type: ShoppingListType }) => {
+    const client = await authedClient();
+    emit(await client.lists.addItems(listId, [{ tpnb, quantity: qty }], opts.type));
+  });
+
+lists
+  .command("create")
+  .description("Create an empty list (names must be unique).")
+  .argument("<name>", "list name")
+  .addOption(listTypeOption())
+  .action(async (name: string, opts: { type: ShoppingListType }) => {
+    const client = await authedClient();
+    emit(await client.lists.create(name, opts.type));
+  });
+
+lists
+  .command("rename")
+  .description("Rename a list.")
+  .argument("<listId>", "list id from `lists get`")
+  .argument("<name>", "new name")
+  .addOption(listTypeOption())
+  .action(async (listId: string, name: string, opts: { type: ShoppingListType }) => {
+    const client = await authedClient();
+    emit(await client.lists.rename(listId, name, opts.type));
   });
 
 // --- checkout ---------------------------------------------------------------

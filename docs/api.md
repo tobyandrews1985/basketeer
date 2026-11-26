@@ -22,6 +22,7 @@ The full surface. For the pitch, quick start, and how it works, see the [README]
 | Discard amend | `orders.discardAmend(no)` | authed | Abandon an open amendment without its handle (e.g. after a restart). |
 | Cancel | `orders.cancel(no)` | authed | Before the cutoff. |
 | Reorder | `orders.lastFulfilled()` → `Order \| null` | authed | Last delivered shop. |
+| Shopping lists | `lists.get / read / addItems / setItems / create / rename` | authed | The app's lists (in-store "Default list"), keyed by TPNB. `setItems` **replaces the whole list**. See [Shopping lists](#shopping-lists). |
 | Checkout | `checkout()` → `{ basket, url }` | authed | **Stops at the payment URL. Never pays.** |
 
 ## Product images
@@ -128,6 +129,84 @@ for (let offset: number | null = 0; offset !== null; ) {
 
 This is a client-side heuristic, not a Tesco "orders after" facility. Custom `contexts` (e.g. other order types or statuses) are forwarded unchanged; the default is `PREVIOUS_ORDER_CONTEXTS` (`GROCERY` / `Previous`).
 
+## Shopping lists
+
+`client.lists` reads and writes the account's Tesco shopping lists — the lists in the Tesco app, separate from the online basket. The operations were found by probing the gateway (introspection is off) and verified against a live account; treat them as reverse-engineered like everything else here.
+
+- **The app's in-store list** is the `INSTORE` list named `"Default list"` (`DEFAULT_SHOPPING_LIST_NAME`). The other kinds are `SHARED` and `CUSTOM` (`SHOPPING_LIST_TYPES`). Every op defaults to `INSTORE`.
+- **Lists belong to the account.** `getShoppingLists` accepts a `locationUuid` (passed through by `lists.get`), but it appears to be ignored: every `locationUuid` tried returned the same lists. If `lists.get()` returns nothing, open the in-store list in the Tesco app once so it creates one.
+- **Items are keyed by TPNB**, not the tpnc `sku` used by the basket. Get it from `Product.tpnb` / `SearchResult.tpnb`. `checked` (ticked off in the app) can be `null` on older lists.
+
+```ts
+const lists = await client.lists.get();                         // [{ id, name }]
+const list = lists.find((l) => l.name === DEFAULT_SHOPPING_LIST_NAME);
+const { items } = await client.lists.read(list!.id);             // [{ tpnb, quantity, checked }]
+
+// Safe: read → merge → write. Keeps everything already on the list.
+await client.lists.addItems(list!.id, [{ tpnb: "100000001", quantity: 2 }]);
+
+// DANGER: replaces the WHOLE list. Anything not sent is removed; [] clears it.
+await client.lists.setItems(list!.id, [{ tpnb: "100000001", quantity: 1, checked: false }]);
+
+await client.lists.create("Party");                               // duplicate names are rejected
+await client.lists.rename(list!.id, "Weekly shop");
+```
+
+| API | Returns | Notes |
+| --- | --- | --- |
+| `lists.get(listType?, { locationUuid?, page?, limit?, offset? })` | `ShoppingListSummary[]` | `getShoppingLists`. `locationUuid` is accepted but appears to be ignored. The plain `shoppingLists` field always returns null; it is not used. |
+| `lists.read(listId, listType?)` | `ShoppingList` | Throws `NotFoundError` when Tesco returns no list. |
+| `lists.setItems(listId, items, listType?)` | `ShoppingList` | `updateShoppingListItem`. **Replaces the whole list.** `checked` defaults to `false`. |
+| `lists.addItems(listId, items, listType?)` | `ShoppingList` | Two requests: read, `mergeShoppingListItems`, then `setItems`. If the read fails, nothing is written. Not safe under concurrent edits. |
+| `lists.create(name, listType?)` | `ShoppingList` | Throws `GraphQLRequestError` ("List name duplicated") for an existing name. |
+| `lists.rename(listId, name, listType?)` | `ShoppingListSummary` | `updateShoppingList`. |
+| `mergeShoppingListItems(current, additions)` | `ShoppingListItemInput[]` | Pure helper used by `addItems`. Keeps every current item; an addition to an **unticked** item adds its quantity, to a **ticked** (already bought) item resets the quantity and unticks it, and anything else is appended. `checked: null` counts as unticked. |
+
+Quantities are finite numbers `> 0` (Tesco's field is a `Float`). Tesco's input type names are not discoverable, so arguments are sent as escaped GraphQL literals, not `$variables`.
+
+> **No delete, on purpose.** Tesco has a `deleteShoppingList(listType, listId)` mutation, but basketeer does not expose it. In testing, deleting a list left the account's app "Default list" unreadable (HTTP 500 `vnd.tesco.product-list.internal.error`; the app showed a blank list) for about 1.5 hours. Renaming, clearing, and rewriting the broken list did not fix it; only deleting it and letting the app create a new one did. To empty a list, use `setItems(listId, [])`.
+
+### Store stock (not wrapped)
+
+Probing also found a stock field on products. It is documented here but not wrapped, because it does **not** give in-store stock:
+
+```graphql
+product(tpnc: "…") {
+  availability {
+    ... on SelectedStoreProductAvailabilityType { status quantity location { stores { __typename } } }
+  }
+}
+```
+
+`status` is `IN_STOCK` or `OUT_OF_STOCK`; the union also has a `RewardsProductAvailabilityType` member.
+
+- **It reports the account's online fulfilment store**, not the store the app uses for its in-store list. To see which store that is, read `basket { storeId locationUuid }` or `profile { storeId locationUuid }` (both return the same store). Where the delivery store is a bigger store than the shopper's local one, this says `IN_STOCK` for items the app shows as out of stock or "not stocked at this store".
+- **Another store can't be selected.** No argument on `product`, `availability` or `location` picks a store. Sending a different store's id or `locationUuid` in request headers (`storeid`, `store-id`, `x-store-id`, `location-uuid`, `locationuuid`) changes nothing, and `location.stores` always comes back empty.
+- Store numbers (`storeId`) are the same numbers as the `bID` values on tesco.com's store locator.
+
+In short, per-store (in-store) stock is not available through `xapi`.
+
+### CLI
+
+```bash
+basketeer lists get                        # --type INSTORE|SHARED|CUSTOM (default INSTORE)
+basketeer lists read <listId>
+basketeer lists add <listId> <tpnb> [qty]  # read → merge → write
+basketeer lists create <name>
+basketeer lists rename <listId> <name>
+```
+
+There is no CLI command for `setItems`, because it replaces the whole list.
+
+### MCP tools
+
+| Tool | Input | Notes |
+| --- | --- | --- |
+| `basketeer_lists_get` | `{ listType? }` | Read-only. |
+| `basketeer_list_read` | `{ listId, listType? }` | Read-only. |
+| `basketeer_list_add_items` | `{ listId, items: [{ tpnb, quantity, checked? }], listType? }` | Read → merge → write. |
+| `basketeer_list_set_items` | `{ listId, items, listType?, confirm? }` | Replaces the whole list. Two-step confirm token; the first call previews the current list. |
+
 ## Markets
 
 `new Basketeer({ market })` takes a built-in code (`"uk"` default, `"cz"`, experimental and community-maintained) or a custom `Market` (untested, no guarantees); `client.market` exposes the resolved one. Exports:
@@ -161,7 +240,7 @@ Implement your own backend with the two-method `AuthBackend` (`login`, `refresh`
 
 Everything thrown is a `BasketeerError` subclass:
 
-- `NotFoundError` — `getProduct` for an unknown SKU.
+- `NotFoundError` — `getProduct` for an unknown SKU; `lists.read` / `lists.addItems` when Tesco returns no list.
 - `ApiKeyError` — the public `x-apikey` was rejected (`403 "Invalid Client"`). It rotates ~monthly; set `TESCO_API_KEY` or pass `{ apiKey }`. Never retryable.
 - `RateLimitedError` — `429`/`403`. The client stops rather than retry-storming; back off.
 - `AuthExpiredError` — the session couldn't be refreshed; re-authenticate.
