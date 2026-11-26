@@ -397,7 +397,9 @@ export function buildServer(client: Basketeer): McpServer {
     { readOnlyHint: false, destructiveHint: true },
     ({ listId, items, listType, confirm }) =>
       run(async () => {
-        const token = confirmToken(`list-set:${listId}:${JSON.stringify(items)}`);
+        const token = confirmToken(
+          `list-set:${listType ?? "INSTORE"}:${listId}:${JSON.stringify(items)}`,
+        );
         if (confirm !== token) {
           return {
             requiresConfirmation: true,

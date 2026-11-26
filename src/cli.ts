@@ -48,6 +48,13 @@ export function nonNegativeNumber(value: string): number {
   return n;
 }
 
+/** commander parser: a finite number > 0 (decimals allowed), else a usage error. */
+export function positiveNumber(value: string): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) throw new InvalidArgumentError("must be a number > 0");
+  return n;
+}
+
 /** commander parser: a known market code, else a usage error. */
 export function marketArg(value: string): Market {
   try {
@@ -356,7 +363,7 @@ lists
   .description("Add a product to a list, keeping what is already on it.")
   .argument("<listId>", "list id from `lists get`")
   .argument("<tpnb>", "product TPNB (not the tpnc sku)")
-  .argument("[qty]", "quantity to add", nonNegativeNumber, 1)
+  .argument("[qty]", "quantity to add", positiveNumber, 1)
   .addOption(listTypeOption())
   .action(async (listId: string, tpnb: string, qty: number, opts: { type: ShoppingListType }) => {
     const client = await authedClient();

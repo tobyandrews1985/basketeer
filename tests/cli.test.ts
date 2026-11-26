@@ -6,6 +6,7 @@ import {
   marketConfigArg,
   nonNegativeInt,
   nonNegativeNumber,
+  positiveNumber,
 } from "../src/cli.js";
 import { MARKETS } from "../src/market.js";
 
@@ -21,6 +22,12 @@ describe("cli numeric parsers", () => {
     expect(nonNegativeNumber("8.5")).toBe(8.5);
     expect(() => nonNegativeNumber("-2")).toThrow(InvalidArgumentError);
     expect(() => nonNegativeNumber("abc")).toThrow(InvalidArgumentError);
+  });
+  it("positiveNumber accepts decimals, rejects zero/negative/junk", () => {
+    expect(positiveNumber("0.5")).toBe(0.5);
+    expect(() => positiveNumber("0")).toThrow(InvalidArgumentError);
+    expect(() => positiveNumber("-1")).toThrow(InvalidArgumentError);
+    expect(() => positiveNumber("abc")).toThrow(InvalidArgumentError);
   });
 });
 

@@ -260,7 +260,9 @@ export function mergeShoppingListItems(
 ): Required<ShoppingListItemInput>[] {
   const merged = new Map<string, Required<ShoppingListItemInput>>();
   for (const it of current) {
-    merged.set(it.tpnb, { tpnb: it.tpnb, quantity: it.quantity, checked: it.checked === true });
+    // A line Tesco sent with no quantity counts as 1, so writing it back can't be rejected.
+    const quantity = it.quantity > 0 ? it.quantity : 1;
+    merged.set(it.tpnb, { tpnb: it.tpnb, quantity, checked: it.checked === true });
   }
   for (const add of additions) {
     const cur = merged.get(add.tpnb);

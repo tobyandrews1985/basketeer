@@ -102,6 +102,18 @@ describe("mergeShoppingListItems", () => {
     ]);
   });
 
+  it("treats a current line with no quantity as 1, so the write-back is valid", () => {
+    expect(
+      mergeShoppingListItems(
+        [{ tpnb: "100000005", quantity: 0, checked: false }],
+        [{ tpnb: "100000006", quantity: 1 }],
+      ),
+    ).toEqual([
+      { tpnb: "100000005", quantity: 1, checked: false },
+      { tpnb: "100000006", quantity: 1, checked: false },
+    ]);
+  });
+
   it("accumulates duplicate additions", () => {
     expect(
       mergeShoppingListItems(
@@ -362,7 +374,16 @@ describe("MCP list tools", () => {
     expect(first.requiresConfirmation).toBe(true);
     expect(first.current).toMatchObject({ id: LIST_ID });
     expect(first.current.raw).toBeUndefined();
-    expect(first.confirmToken).toBe(confirmToken(`list-set:${LIST_ID}:${JSON.stringify(items)}`));
+    expect(first.confirmToken).toBe(
+      confirmToken(`list-set:INSTORE:${LIST_ID}:${JSON.stringify(items)}`),
+    );
+    const other = await call({
+      listId: LIST_ID,
+      items,
+      listType: "SHARED",
+      confirm: first.confirmToken,
+    });
+    expect(other.requiresConfirmation).toBe(true);
     expect(writes).toHaveLength(0);
 
     await call({ listId: LIST_ID, items, confirm: first.confirmToken });
