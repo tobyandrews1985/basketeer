@@ -28,10 +28,13 @@ function stub(status: number, setCookies: string[]) {
 }
 
 describe("HttpAuthBackend", () => {
+  // Relative to now: a fixed date expires and the cookie is (rightly) dropped.
+  const IN_A_DAY = new Date(Date.now() + 86_400_000).toUTCString();
+
   it("replays the session cookies to the market's refresh endpoint and harvests the rotation", async () => {
     const { impl, calls } = stub(302, [
       "OAuth.AccessToken=new.token.sig; Domain=.itesco.cz; Path=/; Secure; HttpOnly",
-      "OAuth.RefreshToken=refresh-2; Domain=.itesco.cz; Path=/; Expires=Mon, 16 Nov 2026 20:08:00 GMT",
+      `OAuth.RefreshToken=refresh-2; Domain=.itesco.cz; Path=/; Expires=${IN_A_DAY}`,
       "atrc=ignored; Path=/",
     ]);
     const backend = new HttpAuthBackend({ market: "cz", fetchImpl: impl });
